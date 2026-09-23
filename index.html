@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electronics Inventory</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f2f4f7;
+    color: #222;
+}
+
+header {
+    background: #1f2937;
+    color: white;
+    padding: 22px 18px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 7px 0 0;
+    color: #d1d5db;
+}
+
+.container {
+    max-width: 1100px;
+    margin: auto;
+    padding: 18px;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.stat {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 7px rgba(0,0,0,.08);
+}
+
+.stat strong {
+    display: block;
+    font-size: 25px;
+    margin-bottom: 4px;
+}
+
+.panel {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.panel h2 {
+    margin-top: 0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 13px;
+}
+
+.full {
+    grid-column: 1 / -1;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 16px;
+}
+
+textarea {
+    min-height: 85px;
+    resize: vertical;
+}
+
+button {
+    border: none;
+    border-radius: 7px;
+    padding: 11px 17px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.primary {
+    background: #2563eb;
+    color: white;
+}
+
+.secondary {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.danger {
+    background: #dc2626;
+    color: white;
+}
+
+.buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.photo-preview {
+    display: none;
+    max-width: 220px;
+    max-height: 180px;
+    object-fit: contain;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.search-row input {
+    flex: 1;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.item-card {
+    border: 1px solid #d7dce3;
+    border-radius: 10px;
+    padding: 14px;
+    background: #fafafa;
+}
+
+.item-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.item-card h3 {
+    margin: 0 0 8px;
+}
+
+.item-info {
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.badge {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.warning {
+    display: none;
+    background: #fff7ed;
+    border: 2px solid #f97316;
+    color: #9a3412;
+    padding: 14px;
+    border-radius: 9px;
+    margin-top: 15px;
+}
+
+.warning strong {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.empty {
+    text-align: center;
+    color: #6b7280;
+    padding: 35px 10px;
+}
+
+@media (max-width: 700px) {
+    .form-grid,
+    .inventory-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>Electronics Inventory</h1>
+    <p>Know what you own before you buy another one.</p>
+</header>
+
+<div class="container">
+
+    <div class="stats">
+        <div class="stat">
+            <strong id="uniqueCount">0</strong>
+            Different Items
+        </div>
+
+        <div class="stat">
+            <strong id="totalCount">0</strong>
+            Total Pieces
+        </div>
+
+        <div class="stat">
+            <strong id="locationCount">0</strong>
+            Locations
+        </div>
+    </div>
+
+    <div class="panel">
+
+        <h2>Add Electronic Item</h2>
+
+        <div class="form-grid">
+
+            <div class="full">
+                <label>Photo</label>
+                <input
+                    type="file"
+                    id="photo"
+                    accept="image/*"
+                    capture="environment"
+                >
+                <img id="photoPreview" class="photo-preview">
+            </div>
+
+            <div>
+                <label>Item Name *</label>
+                <input
+                    id="itemName"
+                    placeholder="Example: Stepper Motor Driver"
+                >
+            </div>
+
+            <div>
+                <label>Category</label>
+                <select id="category">
+                    <option value="">Choose category</option>
+                    <option>Arduino / Microcontroller</option>
+                    <option>Control Board</option>
+                    <option>Stepper Motor</option>
+                    <option>Motor Driver</option>
+                    <option>Power Supply</option>
+                    <option>Relay</option>
+                    <option>Switch</option>
+                    <option>Sensor</option>
+                    <option>Display</option>
+                    <option>Connector</option>
+                    <option>Wire / Cable</option>
+                    <option>Electronic Component</option>
+                    <option>CNC Electronics</option>
+                    <option>3D Printer Electronics</option>
+                    <option>Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Manufacturer</label>
+                <input
+                    id="manufacturer"
+                    placeholder="Example: StepperOnline"
+                >
+            </div>
+
+            <div>
+                <label>Model / Part Number</label>
+                <input
+                    id="partNumber"
+                    placeholder="Example: DM542T"
+                >
+            </div>
+
+            <div>
+                <label>UPC / Barcode Number</label>
+                <input
+                    id="barcode"
+                    placeholder="Scan feature coming next"
+                >
+            </div>
+
+            <div>
+                <label>Quantity</label>
+                <input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value="1"
+                >
+            </div>
+
+            <div>
+                <label>Storage Location *</label>
+                <input
+                    id="location"
+                    placeholder="Example: Cabinet A - Drawer 7"
+                >
+            </div>
+
+            <div>
+                <label>Condition</label>
+                <select id="condition">
+                    <option>New</option>
+                    <option>Used</option>
+                    <option>Unknown</option>
+                    <option>For Parts</option>
+                </select>
+            </div>
+
+            <div class="full">
+                <label>Notes</label>
+                <textarea
+                    id="notes"
+                    placeholder="Voltage, specifications, what it came from, project ideas, etc."
+                ></textarea>
+            </div>
+
+        </div>
+
+        <div id="duplicateWarning" class="warning"></div>
+
+        <div class="buttons">
+            <button class="primary" onclick="saveItem()">
+                Save Item
+            </button>
+
+            <button class="secondary" onclick="clearForm()">
+                Clear
+            </button>
+        </div>
+
+    </div>
+
+    <div class="panel">
+
+        <h2>My Electronics</h2>
+
+        <div class="search-row">
+            <input
+                id="search"
+                placeholder="Search name, part number, location, category..."
+                oninput="renderInventory()"
+            >
+        </div>
+
+        <div id="inventory" class="inventory-grid"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+let inventory = JSON.parse(
+    localStorage.getItem("electronicsInventory") || "[]"
+);
+
+let currentPhoto = "";
+
+const photoInput = document.getElementById("photo");
+const photoPreview = document.getElementById("photoPreview");
+
+photoInput.addEventListener("change", function () {
+
+    const file = this.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function (event) {
+
+        const image = new Image();
+
+        image.onload = function () {
+
+            const canvas = document.createElement("canvas");
+
+            const maxSize = 700;
+
+            let width = image.width;
+            let height = image.height;
+
+            if (width > height && width > maxSize) {
+                height *= maxSize / width;
+                width = maxSize;
+            } else if (height > maxSize) {
+                width *= maxSize / height;
+                height = maxSize;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext("2d");
+
+            ctx.drawImage(image, 0, 0, width, height);
+
+            currentPhoto = canvas.toDataURL(
+                "image/jpeg",
+                0.72
+            );
+
+            photoPreview.src = currentPhoto;
+            photoPreview.style.display = "block";
+
+        };
+
+        image.src = event.target.result;
+
+    };
+
+    reader.readAsDataURL(file);
+
+});
+
+function normalize(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase();
+}
+
+function findDuplicate(name, partNumber, barcode) {
+
+    const cleanName = normalize(name);
+    const cleanPart = normalize(partNumber);
+    const cleanBarcode = normalize(barcode);
+
+    return inventory.find(item => {
+
+        if (
+            cleanBarcode &&
+            normalize(item.barcode) === cleanBarcode
+        ) {
+            return true;
+        }
+
+        if (
+            cleanPart &&
+            normalize(item.partNumber) === cleanPart
+        ) {
+            return true;
+        }
+
+        if (
+            cleanName &&
+            normalize(item.name) === cleanName
+        ) {
+            return true;
+        }
+
+        return false;
+
+    });
+
+}
+
+function saveItem() {
+
+    const name =
+        document.getElementById("itemName").value.trim();
+
+    const category =
+        document.getElementById("category").value;
+
+    const manufacturer =
+        document.getElementById("manufacturer").value.trim();
+
+    const partNumber =
+        document.getElementById("partNumber").value.trim();
+
+    const barcode =
+        document.getElementById("barcode").value.trim();
+
+    const quantity =
+        parseInt(document.getElementById("quantity").value) || 1;
+
+    const location =
+        document.getElementById("location").value.trim();
+
+    const condition =
+        document.getElementById("condition").value;
+
+    const notes =
+        document.getElementById("notes").value.trim();
+
+    if (!name) {
+        alert("Please enter an item name.");
+        return;
+    }
+
+    if (!location) {
+        alert("Please enter where the item is stored.");
+        return;
+    }
+
+    const duplicate =
+        findDuplicate(name, partNumber, barcode);
+
+    if (duplicate) {
+
+        const warning =
+            document.getElementById("duplicateWarning");
+
+        warning.style.display = "block";
+
+        warning.innerHTML =
+            "<strong>Possible Duplicate Found</strong>" +
+            "You already have <b>" +
+            duplicate.quantity +
+            "</b> of <b>" +
+            duplicate.name +
+            "</b> stored at <b>" +
+            duplicate.location +
+            "</b>.<br><br>" +
+            "Check the existing item before adding another.";
+
+        const continueSaving = confirm(
+            "WARNING: You may already own this item.\n\n" +
+            duplicate.name +
+            "\nQuantity already recorded: " +
+            duplicate.quantity +
+            "\nLocation: " +
+            duplicate.location +
+            "\n\nDo you still want to add this as another inventory entry?"
+        );
+
+        if (!continueSaving) {
+            return;
+        }
+
+    }
+
+    const item = {
+
+        id: Date.now(),
+
+        name: name,
+
+        category: category,
+
+        manufacturer: manufacturer,
+
+        partNumber: partNumber,
+
+        barcode: barcode,
+
+        quantity: quantity,
+
+        location: location,
+
+        condition: condition,
+
+        notes: notes,
+
+        photo: currentPhoto,
+
+        dateAdded:
+            new Date().toLocaleDateString()
+
+    };
+
+    inventory.unshift(item);
+
+    saveInventory();
+
+    clearForm();
+
+    renderInventory();
+
+}
+
+function saveInventory() {
+
+    try {
+
+        localStorage.setItem(
+            "electronicsInventory",
+            JSON.stringify(inventory)
+        );
+
+    } catch (error) {
+
+        alert(
+            "The browser storage is getting full. " +
+            "We will add larger permanent storage before building a large inventory."
+        );
+
+    }
+
+}
+
+function deleteItem(id) {
+
+    const item =
+        inventory.find(item => item.id === id);
+
+    if (!item) return;
+
+    const answer = confirm(
+        "Delete " +
+        item.name +
+        " from the inventory?"
+    );
+
+    if (!answer) return;
+
+    inventory =
+        inventory.filter(item => item.id !== id);
+
+    saveInventory();
+
+    renderInventory();
+
+}
+
+function addOne(id) {
+
+    const item =
+        inventory.find(item => item.id === id);
+
+    if (!item) return;
+
+    item.quantity++;
+
+    saveInventory();
+
+    renderInventory();
+
+}
+
+function removeOne(id) {
+
+    const item =
+        inventory.find(item => item.id === id);
+
+    if (!item) return;
+
+    if (item.quantity > 1) {
+
+        item.quantity--;
+
+        saveInventory();
+
+        renderInventory();
+
+    } else {
+
+        alert(
+            "Quantity is already 1. Use Delete if you no longer own this item."
+        );
+
+    }
+
+}
+
+function clearForm() {
+
+    document.getElementById("itemName").value = "";
+    document.getElementById("category").value = "";
+    document.getElementById("manufacturer").value = "";
+    document.getElementById("partNumber").value = "";
+    document.getElementById("barcode").value = "";
+    document.getElementById("quantity").value = 1;
+    document.getElementById("location").value = "";
+    document.getElementById("condition").value = "New";
+    document.getElementById("notes").value = "";
+    document.getElementById("photo").value = "";
+
+    currentPhoto = "";
+
+    photoPreview.src = "";
+    photoPreview.style.display = "none";
+
+    document.getElementById(
+        "duplicateWarning"
+    ).style.display = "none";
+
+}
+
+function renderInventory() {
+
+    const inventoryDiv =
+        document.getElementById("inventory");
+
+    const search =
+        normalize(
+            document.getElementById("search").value
+        );
+
+    const filtered =
+        inventory.filter(item => {
+
+            const combined = normalize(
+                item.name + " " +
+                item.category + " " +
+                item.manufacturer + " " +
+                item.partNumber + " " +
+                item.barcode + " " +
+                item.location + " " +
+                item.notes
+            );
+
+            return combined.includes(search);
+
+        });
+
+    if (filtered.length === 0) {
+
+        inventoryDiv.innerHTML =
+            '<div class="empty">No electronics found.</div>';
+
+    } else {
+
+        inventoryDiv.innerHTML =
+            filtered.map(item => `
+
+            <div class="item-card">
+
+                ${
+                    item.photo
+                    ? `<img src="${item.photo}" alt="">`
+                    : ""
+                }
+
+                ${
+                    item.category
+                    ? `<span class="badge">${escapeHTML(item.category)}</span>`
+                    : ""
+                }
+
+                <h3>${escapeHTML(item.name)}</h3>
+
+                <div class="item-info">
+
+                    <b>Quantity:</b>
+                    ${item.quantity}
+
+                    <br>
+
+                    <b>Location:</b>
+                    ${escapeHTML(item.location)}
+
+                    ${
+                        item.manufacturer
+                        ? `<br><b>Manufacturer:</b> ${escapeHTML(item.manufacturer)}`
+                        : ""
+                    }
+
+                    ${
+                        item.partNumber
+                        ? `<br><b>Part #:</b> ${escapeHTML(item.partNumber)}`
+                        : ""
+                    }
+
+                    ${
+                        item.barcode
+                        ? `<br><b>Barcode:</b> ${escapeHTML(item.barcode)}`
+                        : ""
+                    }
+
+                    <br>
+
+                    <b>Condition:</b>
+                    ${escapeHTML(item.condition)}
+
+                    ${
+                        item.notes
+                        ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
+                        : ""
+                    }
+
+                    <br>
+
+                    <b>Added:</b>
+                    ${escapeHTML(item.dateAdded)}
+
+                </div>
+
+                <div class="buttons">
+
+                    <button
+                        class="secondary"
+                        onclick="addOne(${item.id})">
+                        +1
+                    </button>
+
+                    <button
+                        class="secondary"
+                        onclick="removeOne(${item.id})">
+                        -1
+                    </button>
+
+                    <button
+                        class="danger"
+                        onclick="deleteItem(${item.id})">
+                        Delete
+                    </button>
+
+                </div>
+
+            </div>
+
+        `).join("");
+
+    }
+
+    updateStats();
+
+}
+
+function updateStats() {
+
+    document.getElementById(
+        "uniqueCount"
+    ).textContent = inventory.length;
+
+    const total =
+        inventory.reduce(
+            (sum, item) =>
+                sum + Number(item.quantity || 0),
+            0
+        );
+
+    document.getElementById(
+        "totalCount"
+    ).textContent = total;
+
+    const locations =
+        new Set(
+            inventory
+                .map(item => normalize(item.location))
+                .filter(Boolean)
+        );
+
+    document.getElementById(
+        "locationCount"
+    ).textContent = locations.size;
+
+}
+
+function escapeHTML(value) {
+
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+renderInventory();
+
+</script>
+
+</body>
+</html>
