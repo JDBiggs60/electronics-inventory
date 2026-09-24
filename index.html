@@ -154,6 +154,14 @@ button {
     flex: 1;
 }
 
+.barcode-row { display:flex; gap:8px; align-items:stretch; }
+.barcode-row input { flex:1; min-width:0; }
+.barcode-row button { white-space:nowrap; }
+.scanner-box { display:none; margin-top:10px; padding:12px; border:1px solid #cbd5e1; border-radius:9px; background:#f8fafc; }
+.scanner-box video { width:100%; max-height:320px; object-fit:cover; border-radius:8px; background:#111827; }
+.scanner-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:9px; }
+.lookup-hint { margin-top:7px; color:#64748b; font-size:13px; }
+
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -404,10 +412,16 @@ button {
 
             <div>
                 <label>UPC / Barcode Number</label>
-                <input
-                    id="barcode"
-                    placeholder="Scan feature coming next"
-                >
+                <div class="barcode-row">
+                    <input id="barcode" inputmode="numeric" autocomplete="off" placeholder="Scan or enter barcode">
+                    <button type="button" class="secondary" onclick="startBarcodeScanner()">Scan Barcode</button>
+                </div>
+                <div id="scannerBox" class="scanner-box">
+                    <video id="barcodeVideo" playsinline muted></video>
+                    <div class="scanner-actions">
+                        <button type="button" class="secondary" onclick="stopBarcodeScanner()">Stop Camera</button>
+                    </div>
+                </div>
             </div>
 
             <div>
@@ -444,6 +458,11 @@ button {
                     id="notes"
                     placeholder="Voltage, specifications, what it came from, project ideas, etc."
                 ></textarea>
+            </div>
+
+            <div class="full">
+                <button type="button" class="secondary" onclick="lookUpPartOnline()">Look Up Part Online</button>
+                <div class="lookup-hint">Searches the web using the barcode, manufacturer, model/part number, and item name already in the form.</div>
             </div>
 
         </div>
@@ -491,6 +510,9 @@ let inventory = [];
 let currentPhoto = "";
 let currentUser = null;
 let realtimeChannel = null;
+let barcodeStream = null;
+let barcodeDetector = null;
+let barcodeScanActive = false;
 
 const photoInput = document.getElementById("photo");
 const photoPreview = document.getElementById("photoPreview");
@@ -661,6 +683,103 @@ async function identifyElectronics(imageData) {
     }
 }
 
+async function startBarcodeScanner() {
+    if (barcodeScanActive) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("This browser cannot open the camera for barcode scanning.");
+        return;
+    }
+    if (!("BarcodeDetector" in window)) {
+        alert("Automatic barcode scanning is not supported by this browser. You can still type the barcode number or photograph the label for AI identification.");
+        return;
+    }
+
+    try {
+        setSyncStatus("Opening camera for barcode scan…");
+        const supportedFormats = await BarcodeDetector.getSupportedFormats();
+        const preferredFormats = ["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","qr_code","data_matrix"]
+            .filter(format => supportedFormats.includes(format));
+
+        barcodeDetector = new BarcodeDetector({
+            formats: preferredFormats.length ? preferredFormats : supportedFormats
+        });
+
+        barcodeStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+        });
+
+        const scannerBox = document.getElementById("scannerBox");
+        const video = document.getElementById("barcodeVideo");
+        scannerBox.style.display = "block";
+        video.srcObject = barcodeStream;
+        await video.play();
+
+        barcodeScanActive = true;
+        setSyncStatus("Point the camera at the barcode…");
+        scanBarcodeFrame();
+    } catch (error) {
+        console.error("Barcode scanner failed:", error);
+        stopBarcodeScanner();
+        setSyncStatus("Barcode scanner could not start: " + (error.message || "Unknown error"), false);
+    }
+}
+
+async function scanBarcodeFrame() {
+    if (!barcodeScanActive || !barcodeDetector) return;
+    const video = document.getElementById("barcodeVideo");
+
+    try {
+        if (video.readyState >= 2) {
+            const barcodes = await barcodeDetector.detect(video);
+            if (barcodes && barcodes.length > 0) {
+                const value = String(barcodes[0].rawValue || "").trim();
+                if (value) {
+                    document.getElementById("barcode").value = value;
+                    stopBarcodeScanner();
+                    setSyncStatus("Barcode scanned: " + value);
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Barcode frame scan error:", error);
+    }
+
+    if (barcodeScanActive) setTimeout(scanBarcodeFrame, 250);
+}
+
+function stopBarcodeScanner() {
+    barcodeScanActive = false;
+    if (barcodeStream) {
+        barcodeStream.getTracks().forEach(track => track.stop());
+        barcodeStream = null;
+    }
+    const video = document.getElementById("barcodeVideo");
+    if (video) {
+        video.pause();
+        video.srcObject = null;
+    }
+    const scannerBox = document.getElementById("scannerBox");
+    if (scannerBox) scannerBox.style.display = "none";
+}
+
+function lookUpPartOnline() {
+    const barcode = document.getElementById("barcode").value.trim();
+    const manufacturer = document.getElementById("manufacturer").value.trim();
+    const partNumber = document.getElementById("partNumber").value.trim();
+    const itemName = document.getElementById("itemName").value.trim();
+
+    const query = [...new Set([barcode, manufacturer, partNumber, itemName].filter(Boolean))].join(" ").trim();
+
+    if (!query) {
+        alert("Add a barcode, manufacturer, model/part number, or item name first.");
+        return;
+    }
+
+    window.open("https://www.google.com/search?q=" + encodeURIComponent(query), "_blank", "noopener,noreferrer");
+}
+
 function normalize(value) {
     return String(value || "").trim().toLowerCase();
 }
@@ -737,6 +856,7 @@ async function signUp() {
 }
 
 async function signOut() {
+    stopBarcodeScanner();
     await db.auth.signOut();
 }
 
@@ -953,6 +1073,7 @@ async function removeOne(id) {
 }
 
 function clearForm() {
+    stopBarcodeScanner();
     document.getElementById("itemName").value = "";
     document.getElementById("category").value = "";
     document.getElementById("manufacturer").value = "";
@@ -1251,4 +1372,4 @@ db.auth.onAuthStateChange(async (event, session) => {
 </script>
 
 </body>
-</html><!DOCTYPE html><!DOCTYPE html>
+</html>
