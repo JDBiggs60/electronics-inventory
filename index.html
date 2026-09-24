@@ -504,7 +504,7 @@ photoInput.addEventListener("change", function () {
     reader.onload = function (event) {
         const image = new Image();
 
-        image.onload = function () {
+        image.onload = async function () {
             const canvas = document.createElement("canvas");
             const maxSize = 700;
 
@@ -529,6 +529,8 @@ photoInput.addEventListener("change", function () {
 
             photoPreview.src = currentPhoto;
             photoPreview.style.display = "block";
+
+            await identifyElectronics(currentPhoto);
         };
 
         image.src = event.target.result;
@@ -536,6 +538,54 @@ photoInput.addEventListener("change", function () {
 
     reader.readAsDataURL(file);
 });
+
+
+async function identifyElectronics(imageData) {
+    if (!imageData) return;
+
+    setSyncStatus("AI is identifying this item…");
+
+    try {
+        const { data, error } = await db.functions.invoke("identify-electronics", {
+            body: { image: imageData }
+        });
+
+        if (error) throw error;
+
+        const result = data?.result || data?.item || data;
+        if (!result || typeof result !== "object") {
+            throw new Error("The AI did not return usable item information.");
+        }
+
+        const name = result.name || result.item_name || result.itemName || "";
+        const category = result.category || "";
+        const manufacturer = result.manufacturer || result.brand || "";
+        const partNumber = result.part_number || result.partNumber || result.model || result.model_number || "";
+        const notes = result.notes || result.description || result.specifications || "";
+
+        if (name) document.getElementById("itemName").value = name;
+        if (manufacturer) document.getElementById("manufacturer").value = manufacturer;
+        if (partNumber) document.getElementById("partNumber").value = partNumber;
+
+        if (category) {
+            const categorySelect = document.getElementById("category");
+            const exactOption = Array.from(categorySelect.options).find(
+                option => normalize(option.value) === normalize(category)
+            );
+            if (exactOption) categorySelect.value = exactOption.value;
+        }
+
+        if (notes) {
+            document.getElementById("notes").value =
+                typeof notes === "string" ? notes : JSON.stringify(notes, null, 2);
+        }
+
+        setSyncStatus("AI identification complete — review the details before saving.");
+    } catch (error) {
+        console.error("AI identification failed:", error);
+        setSyncStatus("AI identification failed: " + (error.message || "Unknown error"), false);
+    }
+}
 
 function normalize(value) {
     return String(value || "").trim().toLowerCase();
