@@ -560,12 +560,22 @@ async function identifyElectronics(imageData) {
         const name = result.name || result.item_name || result.itemName || "";
         const category = result.category || "";
         const manufacturer = result.manufacturer || result.brand || "";
-        const partNumber = result.part_number || result.partNumber || result.model || result.model_number || "";
-        const notes = result.notes || result.description || result.specifications || "";
+        const partNumber = result.model_part_number || result.part_number || result.partNumber || result.model || result.model_number || "";
+        const barcode = result.barcode || result.upc || result.upc_code || "";
+        const specifications = result.specifications || "";
+        const visibleMarkings = result.visible_markings || result.visibleMarkings || "";
+        const aiNotes = result.notes || result.description || "";
+
+        const notesParts = [];
+        if (specifications) notesParts.push("Specifications: " + (typeof specifications === "string" ? specifications : JSON.stringify(specifications)));
+        if (visibleMarkings) notesParts.push("Visible markings: " + (typeof visibleMarkings === "string" ? visibleMarkings : JSON.stringify(visibleMarkings)));
+        if (aiNotes) notesParts.push(typeof aiNotes === "string" ? aiNotes : JSON.stringify(aiNotes));
+        const notes = notesParts.join("\n\n");
 
         if (name) document.getElementById("itemName").value = name;
         if (manufacturer) document.getElementById("manufacturer").value = manufacturer;
         if (partNumber) document.getElementById("partNumber").value = partNumber;
+        if (barcode) document.getElementById("barcode").value = barcode;
 
         if (category) {
             const categorySelect = document.getElementById("category");
