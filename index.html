@@ -291,6 +291,13 @@ button {
         grid-template-columns: 1fr;
     }
 }
+
+        .photo-picker { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+        .photo-picker-btn { border:0; border-radius:10px; padding:12px 16px; font-size:16px; font-weight:700; cursor:pointer; background:#e5e7eb; color:#111827; }
+        .photo-picker-btn.primary { background:#2563eb; color:white; }
+        .photo-file-name { margin-top:8px; color:#64748b; font-size:14px; }
+        .hidden-photo-input { display:none; }
+
 </style>
 </head>
 
@@ -355,12 +362,13 @@ button {
 
             <div class="full">
                 <label>Photo</label>
-                <input
-                    type="file"
-                    id="photo"
-                    accept="image/*"
-                   
-                >
+                <div class="photo-picker">
+                    <button type="button" class="photo-picker-btn primary" id="takePhotoButton">Take Photo</button>
+                    <button type="button" class="photo-picker-btn" id="choosePhotoButton">Photo Library / Files</button>
+                </div>
+                <div id="photoFileName" class="photo-file-name">No photo selected</div>
+                <input type="file" id="photo" class="hidden-photo-input" accept="image/*">
+                <input type="file" id="cameraPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
                 <img id="photoPreview" class="photo-preview">
             </div>
 
@@ -530,11 +538,37 @@ let barcodeDetector = null;
 let barcodeScanActive = false;
 
 const photoInput = document.getElementById("photo");
+const cameraPhotoInput = document.getElementById("cameraPhoto");
 const photoPreview = document.getElementById("photoPreview");
+
+document.getElementById("takePhotoButton").addEventListener("click", function () {
+    cameraPhotoInput.click();
+});
+
+document.getElementById("choosePhotoButton").addEventListener("click", function () {
+    photoInput.click();
+});
+
+cameraPhotoInput.addEventListener("change", function () {
+    const file = this.files?.[0];
+    if (!file) return;
+
+    try {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        photoInput.files = transfer.files;
+        photoInput.dispatchEvent(new Event("change"));
+    } catch (error) {
+        console.error(error);
+        alert("The camera photo could not be loaded. Please use Photo Library / Files.");
+    }
+});
 
 photoInput.addEventListener("change", function () {
     const file = this.files[0];
     if (!file) return;
+
+    document.getElementById("photoFileName").textContent = file.name || "Photo selected";
 
     const reader = new FileReader();
 
@@ -1307,6 +1341,8 @@ function clearForm() {
     document.getElementById("condition").value = "New";
     document.getElementById("notes").value = "";
     document.getElementById("photo").value = "";
+    document.getElementById("cameraPhoto").value = "";
+    document.getElementById("photoFileName").textContent = "No photo selected";
 
     currentPhoto = "";
     photoPreview.src = "";
