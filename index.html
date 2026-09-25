@@ -298,6 +298,68 @@ button {
         .photo-file-name { margin-top:8px; color:#64748b; font-size:14px; }
         .hidden-photo-input { display:none; }
 
+
+        .inventory-tools {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .view-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0 14px;
+        }
+        .inventory-table-wrap {
+            overflow-x: auto;
+            display: none;
+        }
+        .inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        .inventory-table th, .inventory-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 9px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .inventory-table th {
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+        }
+        .inventory-table img {
+            width: 54px;
+            height: 54px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .measurement-panel {
+            margin-top: 18px;
+        }
+        #measurementGridPrint {
+            display: none;
+        }
+        @media (max-width: 760px) {
+            .inventory-tools { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body.printing-grid * { visibility: hidden !important; }
+            body.printing-grid #measurementGridPrint,
+            body.printing-grid #measurementGridPrint * { visibility: visible !important; }
+            body.printing-grid #measurementGridPrint {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+        @page { margin: 0.35in; }
+
 </style>
 </head>
 
@@ -508,17 +570,69 @@ button {
 
         <h2>My Electronics</h2>
 
-        <div class="search-row">
+        <div class="inventory-tools">
             <input
                 id="search"
                 placeholder="Search name, part number, location, category..."
                 oninput="renderInventory()"
             >
+
+            <select id="filterSection" onchange="renderInventory()">
+                <option value="">All Sections</option>
+            </select>
+
+            <select id="filterCategory" onchange="renderInventory()">
+                <option value="">All Categories</option>
+            </select>
+
+            <select id="filterLocation" onchange="renderInventory()">
+                <option value="">All Locations</option>
+            </select>
+        </div>
+
+        <div class="view-buttons">
+            <select id="sortInventory" onchange="renderInventory()" style="max-width:220px">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="az">Name A-Z</option>
+                <option value="za">Name Z-A</option>
+                <option value="location">Location A-Z</option>
+            </select>
+
+            <button type="button" class="primary" onclick="setInventoryView('cards')">Card View</button>
+            <button type="button" class="secondary" onclick="setInventoryView('list')">Inventory List</button>
         </div>
 
         <div id="inventory" class="inventory-grid"></div>
 
+        <div id="inventoryTableWrap" class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>Item</th>
+                        <th>Section</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Location</th>
+                        <th>Manufacturer</th>
+                        <th>Part #</th>
+                        <th>Added</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+
     </div>
+
+    <div class="panel measurement-panel">
+        <h2>Printable Measurement Grid</h2>
+        <p>Print a one-inch grid with quarter-inch subdivisions for photographing and measuring parts.</p>
+        <button type="button" class="primary" onclick="printMeasurementGrid()">Print Measurement Grid</button>
+    </div>
+
+    <div id="measurementGridPrint"></div>
 
 </div>
 </div>
@@ -1078,6 +1192,7 @@ function rowToItem(row) {
         condition: row.condition || "New",
         notes: row.notes || "",
         photo: row.photo_path || "",
+        createdAt: row.created_at || "",
         dateAdded: row.created_at
             ? new Date(row.created_at).toLocaleDateString()
             : ""
@@ -1351,11 +1466,42 @@ function clearForm() {
     document.getElementById("duplicateWarning").style.display = "none";
 }
 
-function renderInventory() {
-    const inventoryDiv = document.getElementById("inventory");
-    const search = normalize(document.getElementById("search").value);
+let inventoryView = "cards";
 
-    const filtered = inventory.filter(item => {
+function refreshInventoryFilters() {
+    const definitions = [
+        ["filterSection", "section", "All Sections"],
+        ["filterCategory", "category", "All Categories"],
+        ["filterLocation", "location", "All Locations"]
+    ];
+
+    definitions.forEach(([id, field, label]) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+
+        const current = select.value;
+        const values = [...new Set(
+            inventory.map(item => String(item[field] || "").trim()).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        select.innerHTML =
+            `<option value="">${label}</option>` +
+            values.map(value =>
+                `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`
+            ).join("");
+
+        if (values.includes(current)) select.value = current;
+    });
+}
+
+function getFilteredInventory() {
+    const search = normalize(document.getElementById("search")?.value || "");
+    const section = document.getElementById("filterSection")?.value || "";
+    const category = document.getElementById("filterCategory")?.value || "";
+    const location = document.getElementById("filterLocation")?.value || "";
+    const sort = document.getElementById("sortInventory")?.value || "newest";
+
+    let filtered = inventory.filter(item => {
         const combined = normalize(
             item.name + " " +
             item.section + " " +
@@ -1367,97 +1513,149 @@ function renderInventory() {
             item.notes
         );
 
-        return combined.includes(search);
+        return combined.includes(search) &&
+            (!section || item.section === section) &&
+            (!category || item.category === category) &&
+            (!location || item.location === location);
     });
 
-    if (filtered.length === 0) {
-        inventoryDiv.innerHTML =
-            '<div class="empty">No electronics found.</div>';
+    filtered = [...filtered].sort((a, b) => {
+        if (sort === "az") return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
+        if (sort === "za") return String(b.name || "").localeCompare(String(a.name || ""), undefined, { numeric: true });
+        if (sort === "location") return String(a.location || "").localeCompare(String(b.location || ""), undefined, { numeric: true });
+        if (sort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+
+    return filtered;
+}
+
+function setInventoryView(view) {
+    inventoryView = view === "list" ? "list" : "cards";
+    renderInventory();
+}
+
+function renderInventory() {
+    const inventoryDiv = document.getElementById("inventory");
+    const tableWrap = document.getElementById("inventoryTableWrap");
+    const tableBody = document.getElementById("inventoryTableBody");
+
+    refreshInventoryFilters();
+    const filtered = getFilteredInventory();
+
+    if (inventoryView === "list") {
+        inventoryDiv.style.display = "none";
+        tableWrap.style.display = "block";
+
+        if (filtered.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9">No electronics found.</td></tr>';
+        } else {
+            tableBody.innerHTML = filtered.map(item => `
+                <tr>
+                    <td>${item.photo ? `<img src="${item.photo}" alt="">` : ""}</td>
+                    <td><b>${escapeHTML(item.name)}</b></td>
+                    <td>${escapeHTML(item.section)}</td>
+                    <td>${escapeHTML(item.category)}</td>
+                    <td>${Number(item.quantity || 0)}</td>
+                    <td>${escapeHTML(item.location)}</td>
+                    <td>${escapeHTML(item.manufacturer)}</td>
+                    <td>${escapeHTML(item.partNumber)}</td>
+                    <td>${escapeHTML(item.dateAdded)}</td>
+                </tr>
+            `).join("");
+        }
     } else {
-        inventoryDiv.innerHTML = filtered.map(item => `
-            <div class="item-card">
+        inventoryDiv.style.display = "";
+        tableWrap.style.display = "none";
 
-                ${
-                    item.photo
-                    ? `<img src="${item.photo}" alt="">`
-                    : ""
-                }
+        if (filtered.length === 0) {
+            inventoryDiv.innerHTML =
+                '<div class="empty">No electronics found.</div>';
+        } else {
+            inventoryDiv.innerHTML = filtered.map(item => `
+                <div class="item-card">
 
-                ${
-                    item.section
-                    ? `<div class="item-info"><b>Section:</b> ${escapeHTML(item.section)}</div>`
-                    : ""
-                }
+                    ${item.photo ? `<img src="${item.photo}" alt="">` : ""}
 
-                ${
-                    item.category
-                    ? `<span class="badge">${escapeHTML(item.category)}</span>`
-                    : ""
-                }
+                    ${item.section
+                        ? `<div class="item-info"><b>Section:</b> ${escapeHTML(item.section)}</div>`
+                        : ""}
 
-                <h3>${escapeHTML(item.name)}</h3>
+                    ${item.category
+                        ? `<span class="badge">${escapeHTML(item.category)}</span>`
+                        : ""}
 
-                <div class="item-info">
-                    <b>Quantity:</b> ${item.quantity}
-                    <br>
+                    <h3>${escapeHTML(item.name)}</h3>
 
-                    <b>Location:</b> ${escapeHTML(item.location)}
+                    <div class="item-info">
+                        <b>Quantity:</b> ${item.quantity}
+                        <br>
+                        <b>Location:</b> ${escapeHTML(item.location)}
 
-                    ${
-                        item.manufacturer
-                        ? `<br><b>Manufacturer:</b> ${escapeHTML(item.manufacturer)}`
-                        : ""
-                    }
+                        ${item.manufacturer
+                            ? `<br><b>Manufacturer:</b> ${escapeHTML(item.manufacturer)}`
+                            : ""}
 
-                    ${
-                        item.partNumber
-                        ? `<br><b>Part #:</b> ${escapeHTML(item.partNumber)}`
-                        : ""
-                    }
+                        ${item.partNumber
+                            ? `<br><b>Part #:</b> ${escapeHTML(item.partNumber)}`
+                            : ""}
 
-                    ${
-                        item.barcode
-                        ? `<br><b>Barcode:</b> ${escapeHTML(item.barcode)}`
-                        : ""
-                    }
+                        ${item.barcode
+                            ? `<br><b>Barcode:</b> ${escapeHTML(item.barcode)}`
+                            : ""}
 
-                    <br>
-                    <b>Condition:</b> ${escapeHTML(item.condition)}
+                        <br>
+                        <b>Condition:</b> ${escapeHTML(item.condition)}
 
-                    ${
-                        item.notes
-                        ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
-                        : ""
-                    }
+                        ${item.notes
+                            ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
+                            : ""}
 
-                    <br>
-                    <b>Added:</b> ${escapeHTML(item.dateAdded)}
+                        <br>
+                        <b>Added:</b> ${escapeHTML(item.dateAdded)}
+                    </div>
+
+                    <div class="buttons">
+                        <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
+                        <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
+                        <button class="danger" onclick='deleteItem(${JSON.stringify(item.id)})'>Delete</button>
+                    </div>
                 </div>
-
-                <div class="buttons">
-                    <button
-                        class="secondary"
-                        onclick='addOne(${JSON.stringify(item.id)})'>
-                        +1
-                    </button>
-
-                    <button
-                        class="secondary"
-                        onclick='removeOne(${JSON.stringify(item.id)})'>
-                        -1
-                    </button>
-
-                    <button
-                        class="danger"
-                        onclick='deleteItem(${JSON.stringify(item.id)})'>
-                        Delete
-                    </button>
-                </div>
-            </div>
-        `).join("");
+            `).join("");
+        }
     }
 
     updateStats();
+}
+
+function printMeasurementGrid() {
+    const target = document.getElementById("measurementGridPrint");
+
+    target.innerHTML = `
+        <div style="font-family:Arial,sans-serif;text-align:center;">
+            <h2 style="margin:0 0 4px;">Electronics Inventory Measurement Grid</h2>
+            <div style="font-size:12px;margin-bottom:8px;">1-inch major grid • 1/4-inch subdivisions • Print at 100% / Actual Size</div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="7.5in" height="9in" viewBox="0 0 750 900" style="border:2px solid #000;max-width:none;">
+                <defs>
+                    <pattern id="quarterGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+                        <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#aaa" stroke-width="0.7"/>
+                    </pattern>
+                    <pattern id="inchGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <rect width="100" height="100" fill="url(#quarterGrid)"/>
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#000" stroke-width="1.5"/>
+                    </pattern>
+                </defs>
+                <rect width="750" height="900" fill="url(#inchGrid)"/>
+                <rect x="0" y="0" width="100" height="100" fill="none" stroke="#000" stroke-width="3"/>
+                <text x="50" y="55" text-anchor="middle" font-family="Arial" font-size="16">1 inch</text>
+                <text x="375" y="885" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: the outlined reference square above must measure exactly 1 × 1 inch.</text>
+            </svg>
+        </div>
+    `;
+
+    document.body.classList.add("printing-grid");
+    window.print();
+    setTimeout(() => document.body.classList.remove("printing-grid"), 500);
 }
 
 function updateStats() {
