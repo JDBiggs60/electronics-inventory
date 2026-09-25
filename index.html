@@ -899,20 +899,40 @@ function mapInventorySection(details = {}) {
     const hasAny = (...terms) => terms.some(term => text.includes(term));
     const category = normalize(details.category);
 
-    if (category === "cnc electronics" || hasAny(
-        "cnc", "mach3", "mach4", "grbl", "torch height", "thc",
-        "breakout board", "motion controller", "linear rail",
-        "ball screw", "ballscrew", "lead screw", "leadscrew"
+    // Trust a specific electronics category before looking at loose words
+    // in the notes. This prevents phrases such as "four mounting screws"
+    // from incorrectly turning a Stepper Motor into Hardware & Fasteners.
+    if (category === "cnc electronics") return "CNC & Automation";
+    if (category === "3d printer electronics") return "3D Printing";
+
+    if ([
+        "arduino / microcontroller", "control board", "stepper motor",
+        "motor driver", "power supply", "relay", "switch", "sensor",
+        "display", "connector", "wire / cable", "electronic component"
+    ].includes(category)) return "Electronics";
+
+    if (hasAny(
+        "cnc controller", "cnc breakout", "breakout board", "motion controller",
+        "torch height", "thc controller", "cnc interface", "mach3 board",
+        "mach4 board", "grbl controller", "linear rail", "ball screw",
+        "ballscrew", "lead screw", "leadscrew"
     )) return "CNC & Automation";
 
-    if (category === "3d printer electronics" || hasAny(
+    if (hasAny(
         "3d printer", "3d-printer", "filament", "hotend", "extruder",
         "heated bed", "build plate"
     )) return "3D Printing";
 
     if (hasAny(
+        "arduino", "esp32", "microcontroller", "resistor", "capacitor",
+        "diode", "transistor", "mosfet", "relay", "sensor", "connector",
+        "power supply", "stepper motor", "stepping motor", "motor driver",
+        "control board", "electronic", "circuit"
+    )) return "Electronics";
+
+    if (hasAny(
         "drill", "saw", "wrench", "socket set", "screwdriver", "pliers",
-        "multimeter", "meter", "caliper", "tool"
+        "multimeter", "caliper", "hand tool", "power tool"
     )) return "Tools";
 
     if (hasAny(
@@ -930,19 +950,6 @@ function mapInventorySection(details = {}) {
         "lumber", "plywood", "hardwood", "softwood", "wood blank",
         "acrylic sheet", "plastic sheet", "material stock"
     )) return "Wood & Materials";
-
-    if ([
-        "arduino / microcontroller", "control board", "stepper motor",
-        "motor driver", "power supply", "relay", "switch", "sensor",
-        "display", "connector", "wire / cable", "electronic component"
-    ].includes(category)) return "Electronics";
-
-    if (hasAny(
-        "arduino", "esp32", "microcontroller", "resistor", "capacitor",
-        "diode", "transistor", "mosfet", "relay", "sensor", "connector",
-        "power supply", "stepper motor", "motor driver", "control board",
-        "electronic", "circuit"
-    )) return "Electronics";
 
     return "Other";
 }
