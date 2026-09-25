@@ -645,15 +645,12 @@ async function identifyElectronics(imageData) {
             document.getElementById("barcode").value = barcode;
         }
 
-        if (category) {
-            const categorySelect = document.getElementById("category");
-            const exactOption = Array.from(categorySelect.options).find(
-                option => normalize(option.value) === normalize(category)
-            );
+        const mappedCategory = mapAICategory({
+            category, name, partNumber, specifications, visibleMarkings, notes: aiNotes
+        });
 
-            if (exactOption) {
-                categorySelect.value = exactOption.value;
-            }
+        if (mappedCategory) {
+            document.getElementById("category").value = mappedCategory;
         }
 
         // Put useful AI information that does not have its own form field
@@ -782,6 +779,85 @@ function lookUpPartOnline() {
 
 function normalize(value) {
     return String(value || "").trim().toLowerCase();
+}
+
+function mapAICategory(details = {}) {
+    const categorySelect = document.getElementById("category");
+    const aiCategory = normalize(details.category);
+
+    const exactOption = Array.from(categorySelect.options).find(
+        option => option.value && normalize(option.value) === aiCategory
+    );
+    if (exactOption) return exactOption.value;
+
+    const text = normalize([
+        details.category, details.name, details.partNumber,
+        details.specifications, details.visibleMarkings, details.notes
+    ].filter(Boolean).join(" "));
+
+    if (!text) return "";
+    const hasAny = (...terms) => terms.some(term => text.includes(term));
+
+    // Specific rules come first so "stepper motor driver" is not
+    // accidentally categorized as a Stepper Motor.
+    if (hasAny("stepper driver","motor driver","motor controller","dm542","dm556",
+        "tb6600","tb6560","a4988","drv8825","tmc2208","tmc2209","tmc2225",
+        "tmc5160","l298n","l293d")) return "Motor Driver";
+
+    if (hasAny("nema 17","nema17","nema 23","nema23","nema 24","nema24",
+        "nema 34","nema34","stepper motor","stepping motor")) return "Stepper Motor";
+
+    if (hasAny("arduino","uno r3","arduino uno","arduino nano","arduino mega",
+        "esp32","esp8266","nodemcu","raspberry pi pico","rp2040","stm32",
+        "teensy","microcontroller","development board","dev board"))
+        return "Arduino / Microcontroller";
+
+    if (hasAny("relay module","solid state relay","electromechanical relay",
+        "power relay","signal relay","relay board","relay")) return "Relay";
+
+    if (hasAny("power supply","switching supply","switch mode power supply","smps",
+        "ac adapter","dc adapter","power adapter","power brick","dc-dc converter",
+        "dc dc converter","buck converter","boost converter","voltage regulator module"))
+        return "Power Supply";
+
+    if (hasAny("limit switch","microswitch","micro switch","toggle switch",
+        "rocker switch","push button","pushbutton","selector switch",
+        "reed switch","rotary switch","switch")) return "Switch";
+
+    if (hasAny("proximity sensor","temperature sensor","humidity sensor",
+        "pressure sensor","photoelectric sensor","hall sensor","ultrasonic sensor",
+        "infrared sensor","ir sensor","motion sensor","accelerometer","gyroscope",
+        "encoder sensor","sensor module","sensor")) return "Sensor";
+
+    if (hasAny("lcd display","oled display","tft display","led display",
+        "display module","touchscreen","touch screen","seven segment","7-segment","display"))
+        return "Display";
+
+    if (hasAny("terminal block","connector","header pins","pin header","dupont",
+        "jst","molex","socket connector","plug connector","rj45","usb connector",
+        "barrel jack")) return "Connector";
+
+    if (hasAny("ribbon cable","jumper wire","hookup wire","hook-up wire",
+        "shielded cable","usb cable","power cable","signal cable","wire harness",
+        "wiring harness","cable","wire")) return "Wire / Cable";
+
+    if (hasAny("cnc controller","cnc breakout","breakout board","motion controller",
+        "torch height","thc controller","cnc interface","mach3 board","mach4 board",
+        "grbl controller")) return "CNC Electronics";
+
+    if (hasAny("3d printer","3d-printer","extruder board","hotend board",
+        "heated bed controller","printer control board")) return "3D Printer Electronics";
+
+    if (hasAny("control board","controller board","main board","mainboard",
+        "logic board","interface board","control module","controller module"))
+        return "Control Board";
+
+    if (hasAny("resistor","capacitor","diode","transistor","mosfet",
+        "integrated circuit","inductor","thermistor","potentiometer","fuse",
+        "bridge rectifier","op amp","op-amp","crystal oscillator",
+        "electronic component")) return "Electronic Component";
+
+    return aiCategory ? "Other" : "";
 }
 
 function setSyncStatus(message, good = true) {
