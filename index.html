@@ -730,10 +730,29 @@ backPhotoInput.addEventListener("change",async function(){
 
 function addExtraPhotoSlot(){
  const id=++extraPhotoCounter,wrap=document.createElement("div");wrap.className="extra-photo-card";wrap.id="extraPhotoCard"+id;
- wrap.innerHTML=`<div class="photo-slot-title">Extra Photo ${id}</div><input type="file" id="extraPhotoInput${id}" accept="image/*"><img id="extraPhotoPreview${id}" class="multi-photo-preview"><div class="buttons"><button type="button" class="danger" onclick="removeExtraPhotoSlot(${id})">Remove</button></div>`;
+ wrap.innerHTML=`
+  <div class="photo-slot-title">Extra Photo ${id}</div>
+  <div class="photo-picker">
+   <button type="button" class="photo-picker-btn primary" id="takeExtraPhotoButton${id}">Take Extra Photo</button>
+   <button type="button" class="photo-picker-btn" id="chooseExtraPhotoButton${id}">Choose Extra Photo</button>
+  </div>
+  <div id="extraPhotoFileName${id}" class="photo-file-name">No extra photo selected</div>
+  <input type="file" id="extraPhotoInput${id}" class="hidden-photo-input" accept="image/*">
+  <input type="file" id="cameraExtraPhotoInput${id}" class="hidden-photo-input" accept="image/*" capture="environment">
+  <img id="extraPhotoPreview${id}" class="multi-photo-preview">
+  <div class="buttons"><button type="button" class="danger" onclick="removeExtraPhotoSlot(${id})">Remove</button></div>`;
  document.getElementById("extraPhotos").appendChild(wrap);
- document.getElementById("extraPhotoInput"+id).addEventListener("change",async function(){
+
+ const extraInput=document.getElementById("extraPhotoInput"+id);
+ const extraCameraInput=document.getElementById("cameraExtraPhotoInput"+id);
+
+ document.getElementById("takeExtraPhotoButton"+id).addEventListener("click",()=>extraCameraInput.click());
+ document.getElementById("chooseExtraPhotoButton"+id).addEventListener("click",()=>extraInput.click());
+ extraCameraInput.addEventListener("change",()=>copyCameraFileToInput(extraCameraInput,extraInput));
+
+ extraInput.addEventListener("change",async function(){
   const file=this.files?.[0];if(!file)return;
+  document.getElementById("extraPhotoFileName"+id).textContent=file.name||"Extra photo selected";
   try{const data=await compressPhotoFile(file),existing=currentExtraPhotos.find(p=>p.id===id);if(existing)existing.data=data;else currentExtraPhotos.push({id,data});
    const preview=document.getElementById("extraPhotoPreview"+id);preview.src=data;preview.style.display="block";setSyncStatus("Extra photo ready. It will be saved with this item.")}
   catch(error){console.error(error);alert("That extra photo could not be loaded.")}
