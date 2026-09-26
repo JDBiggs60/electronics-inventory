@@ -337,6 +337,12 @@ button {
             object-fit: cover;
             border-radius: 6px;
         }
+        .inventory-table tbody tr.inventory-row-link { cursor: pointer; }
+        .inventory-table tbody tr.inventory-row-link:hover { background: #f1f5f9; }
+        .item-card.inventory-jump-highlight {
+            outline: 3px solid #2563eb;
+            outline-offset: 3px;
+        }
         .measurement-panel {
             margin-top: 18px;
         }
@@ -372,43 +378,16 @@ button {
 @media(max-width:700px){.multi-photo-area{grid-template-columns:1fr}}
 
 
-/* Storage Bins / Locations */
-.bins-toolbar {
-    display: grid;
-    grid-template-columns: 2fr auto;
-    gap: 10px;
-    margin-bottom: 14px;
-}
-.bins-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-.bin-card {
-    border: 1px solid #d7dce3;
-    border-radius: 10px;
-    padding: 14px;
-    background: #fafafa;
-}
-.bin-card h3 { margin: 0 0 7px; }
-.bin-count { color: #475569; margin-bottom: 10px; }
-.bin-items {
-    display: none;
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid #e5e7eb;
-}
-.bin-item-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 7px 0;
-    border-bottom: 1px solid #eef2f7;
-}
-.bin-item-row:last-child { border-bottom: 0; }
-@media (max-width: 700px) {
-    .bins-toolbar, .bins-grid { grid-template-columns: 1fr; }
-}
+/* Storage location / bin organizer */
+.location-organizer{border:1px solid #d7dce3;border-radius:10px;padding:12px;background:#f8fafc;margin-top:8px}
+.location-builder{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.location-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.location-summary{margin-top:8px;font-size:14px;color:#475569}
+.location-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.location-card{border:1px solid #d7dce3;border-radius:9px;padding:12px;background:#fafafa}
+.location-card button{width:100%;text-align:left;background:transparent;padding:0;font-weight:700}
+.location-card small{display:block;margin-top:5px;color:#64748b}
+@media(max-width:700px){.location-builder,.location-list{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -588,12 +567,24 @@ button {
                 >
             </div>
 
-            <div>
+            <div class="full">
                 <label>Storage Location *</label>
-                <input
-                    id="location"
-                    placeholder="Example: Cabinet A - Drawer 7"
-                >
+                <div class="location-organizer">
+                    <select id="existingLocation" onchange="useExistingLocation()">
+                        <option value="">Choose an existing location</option>
+                    </select>
+                    <div class="location-builder">
+                        <input id="locationArea" placeholder="Cabinet / Box / Shelf, e.g. Cabinet A">
+                        <input id="locationSection" placeholder="Drawer / Shelf, e.g. Drawer 7">
+                        <input id="locationBin" placeholder="Bin / Section, e.g. Bin 3">
+                    </div>
+                    <div class="location-actions">
+                        <button type="button" class="secondary" onclick="buildLocation()">Use This Location</button>
+                        <button type="button" class="secondary" onclick="clearLocationBuilder()">Clear Location Builder</button>
+                    </div>
+                    <div class="location-summary">Build a consistent location such as Cabinet A - Drawer 7 - Bin 3, or choose one you have already used.</div>
+                    <input id="location" style="margin-top:10px;" placeholder="Example: Cabinet A - Drawer 7 - Bin 3" oninput="syncLocationBuilderFromFinal()">
+                </div>
             </div>
 
             <div>
@@ -695,21 +686,11 @@ button {
 
     </div>
 
-
-    <div class="panel" id="binsPanel">
-        <h2>Storage Bins &amp; Locations</h2>
-        <p>Use names such as <b>Cabinet A - Drawer 7 - Bin 3</b>. Locations already used by inventory items appear automatically.</p>
-
-        <div class="bins-toolbar">
-            <input id="newBinLocation" placeholder="Example: Cabinet A - Drawer 7 - Bin 3">
-            <button type="button" class="primary" onclick="addStorageLocation()">Add Location</button>
-        </div>
-
-        <div class="search-row">
-            <input id="binSearch" placeholder="Search bins / locations..." oninput="renderBins()">
-        </div>
-
-        <div id="binsGrid" class="bins-grid"></div>
+    <div class="panel">
+        <h2>Storage Locations</h2>
+        <p class="lookup-hint">Built automatically from the locations already used in your inventory. Click a location to show its contents.</p>
+        <div id="storageLocationList" class="location-list"></div>
+        <div class="buttons"><button type="button" class="secondary" onclick="showAllLocations()">Show All Inventory</button></div>
     </div>
 
     <div class="panel measurement-panel">
@@ -1573,9 +1554,66 @@ function clearForm() {
     photoPreview.src="";photoPreview.style.display="none";backPhotoPreview.src="";backPhotoPreview.style.display="none";
     document.getElementById("extraPhotos").innerHTML="";
     document.getElementById("duplicateWarning").style.display="none";
+    clearLocationBuilder(false);
 }
 
 let inventoryView = "cards";
+
+
+function getSavedLocations(){
+ return [...new Set(inventory.map(item=>String(item.location||"").trim()).filter(Boolean))]
+  .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+}
+function refreshLocationOrganizer(){
+ const select=document.getElementById("existingLocation");
+ if(select){
+  const current=select.value,locations=getSavedLocations();
+  select.innerHTML='<option value="">Choose an existing location</option>'+locations.map(v=>`<option value="${escapeHTML(v)}">${escapeHTML(v)}</option>`).join("");
+  if(locations.includes(current))select.value=current;
+ }
+ renderStorageLocations();
+}
+function useExistingLocation(){
+ const value=String(document.getElementById("existingLocation")?.value||"").trim();
+ if(!value)return;
+ document.getElementById("location").value=value;
+ syncLocationBuilderFromFinal();
+}
+function buildLocation(){
+ const parts=["locationArea","locationSection","locationBin"].map(id=>document.getElementById(id)?.value.trim()).filter(Boolean);
+ if(!parts.length){alert("Enter a cabinet, box, shelf, drawer, or bin first.");return}
+ document.getElementById("location").value=parts.join(" - ");
+}
+function clearLocationBuilder(clearFinal=false){
+ ["locationArea","locationSection","locationBin"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
+ const s=document.getElementById("existingLocation");if(s)s.value="";
+ if(clearFinal){const l=document.getElementById("location");if(l)l.value=""}
+}
+function syncLocationBuilderFromFinal(){
+ const value=document.getElementById("location")?.value.trim()||"";
+ const parts=value.split(/\s+-\s+/).map(v=>v.trim()).filter(Boolean);
+ document.getElementById("locationArea").value=parts[0]||"";
+ document.getElementById("locationSection").value=parts[1]||"";
+ document.getElementById("locationBin").value=parts.slice(2).join(" - ")||"";
+ const s=document.getElementById("existingLocation");
+ if(s)s.value=Array.from(s.options).some(o=>o.value===value)?value:"";
+}
+function renderStorageLocations(){
+ const target=document.getElementById("storageLocationList");if(!target)return;
+ const locations=getSavedLocations();
+ if(!locations.length){target.innerHTML='<div class="empty">No storage locations yet.</div>';return}
+ target.innerHTML=locations.map(location=>{
+  const items=inventory.filter(item=>String(item.location||"").trim()===location);
+  const pieces=items.reduce((sum,item)=>sum+Number(item.quantity||0),0);
+  return `<div class="location-card"><button type="button" onclick='viewStorageLocation(${JSON.stringify(location)})'>${escapeHTML(location)}</button><small>${items.length} different item${items.length===1?"":"s"} • ${pieces} total piece${pieces===1?"":"s"}</small></div>`;
+ }).join("");
+}
+function viewStorageLocation(location){
+ const filter=document.getElementById("filterLocation");if(!filter)return;
+ refreshInventoryFilters();filter.value=location;renderInventory();
+ document.getElementById("inventory")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function showAllLocations(){const f=document.getElementById("filterLocation");if(f)f.value="";renderInventory()}
 
 function refreshInventoryFilters() {
     const definitions = [
@@ -1644,12 +1682,26 @@ function setInventoryView(view) {
     renderInventory();
 }
 
+function openInventoryItem(id) {
+    inventoryView = "cards";
+    renderInventory();
+
+    requestAnimationFrame(() => {
+        const card = document.getElementById("inventory-card-" + String(id));
+        if (!card) return;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("inventory-jump-highlight");
+        setTimeout(() => card.classList.remove("inventory-jump-highlight"), 1800);
+    });
+}
+
 function renderInventory() {
     const inventoryDiv = document.getElementById("inventory");
     const tableWrap = document.getElementById("inventoryTableWrap");
     const tableBody = document.getElementById("inventoryTableBody");
 
     refreshInventoryFilters();
+    refreshLocationOrganizer();
     const filtered = getFilteredInventory();
 
     if (inventoryView === "list") {
@@ -1660,7 +1712,7 @@ function renderInventory() {
             tableBody.innerHTML = '<tr><td colspan="9">No electronics found.</td></tr>';
         } else {
             tableBody.innerHTML = filtered.map(item => `
-                <tr>
+                <tr class="inventory-row-link" onclick='openInventoryItem(${JSON.stringify(item.id)})' title="Open full inventory card">
                     <td>${getItemPhotos(item)[0] ? `<img src="${getItemPhotos(item)[0]}" alt="">` : ""}</td>
                     <td><b>${escapeHTML(item.name)}</b></td>
                     <td>${escapeHTML(item.section)}</td>
@@ -1682,7 +1734,7 @@ function renderInventory() {
                 '<div class="empty">No electronics found.</div>';
         } else {
             inventoryDiv.innerHTML = filtered.map(item => `
-                <div class="item-card">
+                <div class="item-card" id="inventory-card-${escapeHTML(String(item.id))}">
 
                     ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="">`).join("")}</div>` : ""}
 
@@ -1735,168 +1787,7 @@ function renderInventory() {
     }
 
     updateStats();
-    renderBins();
 }
-
-
-/* ---------- STORAGE BINS / LOCATIONS ---------- */
-
-function binStorageKey() {
-    return currentUser ? "electronicsSavedBins_" + currentUser.id : "electronicsSavedBins";
-}
-
-function getSavedBins() {
-    try {
-        const bins = JSON.parse(localStorage.getItem(binStorageKey()) || "[]");
-        return Array.isArray(bins) ? bins : [];
-    } catch {
-        return [];
-    }
-}
-
-function saveBins(bins) {
-    localStorage.setItem(binStorageKey(), JSON.stringify(bins));
-}
-
-function getAllStorageLocations() {
-    const used = inventory
-        .map(item => String(item.location || "").trim())
-        .filter(Boolean);
-
-    const saved = getSavedBins();
-
-    return [...new Set([...used, ...saved])]
-        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-}
-
-function addStorageLocation() {
-    const input = document.getElementById("newBinLocation");
-    const location = String(input?.value || "").trim();
-
-    if (!location) {
-        alert("Enter a cabinet, drawer, bin, shelf, or other storage location first.");
-        return;
-    }
-
-    const alreadyExists = getAllStorageLocations()
-        .some(value => normalize(value) === normalize(location));
-
-    if (alreadyExists) {
-        alert("That storage location already exists.");
-        return;
-    }
-
-    const bins = getSavedBins();
-    bins.push(location);
-    saveBins(bins);
-    input.value = "";
-    renderBins();
-}
-
-function deleteEmptyStorageLocation(location) {
-    const hasItems = inventory.some(
-        item => normalize(item.location) === normalize(location)
-    );
-
-    if (hasItems) {
-        alert("This location contains inventory. Move or delete those items before removing the location.");
-        return;
-    }
-
-    if (!confirm("Remove storage location:\\n\\n" + location + "?")) return;
-
-    const bins = getSavedBins().filter(
-        value => normalize(value) !== normalize(location)
-    );
-
-    saveBins(bins);
-    renderBins();
-}
-
-function useStorageLocation(location) {
-    document.getElementById("location").value = location;
-    document.getElementById("itemName").scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
-    setSyncStatus("New item location selected: " + location);
-}
-
-function viewStorageLocation(location) {
-    const safeId = "binItems_" + location.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const area = document.getElementById(safeId);
-    if (!area) return;
-    area.style.display = area.style.display === "block" ? "none" : "block";
-}
-
-function renderBins() {
-    const grid = document.getElementById("binsGrid");
-    if (!grid) return;
-
-    const search = normalize(document.getElementById("binSearch")?.value || "");
-    const locations = getAllStorageLocations()
-        .filter(location => normalize(location).includes(search));
-
-    if (!locations.length) {
-        grid.innerHTML = '<div class="empty">No storage locations yet. Add your first cabinet, drawer, shelf, or bin above.</div>';
-        return;
-    }
-
-    grid.innerHTML = locations.map(location => {
-        const items = inventory.filter(
-            item => normalize(item.location) === normalize(location)
-        );
-
-        const totalPieces = items.reduce(
-            (sum, item) => sum + Number(item.quantity || 0), 0
-        );
-
-        const safeId = "binItems_" + location.replace(/[^a-zA-Z0-9_-]/g, "_");
-
-        const itemRows = items.length
-            ? items.map(item => `
-                <div class="bin-item-row">
-                    <span><b>${escapeHTML(item.name)}</b></span>
-                    <span>Qty ${Number(item.quantity || 0)}</span>
-                </div>
-            `).join("")
-            : '<div class="empty" style="padding:12px 0;">This location is empty.</div>';
-
-        return `
-            <div class="bin-card">
-                <h3>${escapeHTML(location)}</h3>
-                <div class="bin-count">
-                    ${items.length} different item${items.length === 1 ? "" : "s"} •
-                    ${totalPieces} total piece${totalPieces === 1 ? "" : "s"}
-                </div>
-
-                <div class="buttons">
-                    <button type="button" class="secondary"
-                        onclick='viewStorageLocation(${JSON.stringify(location)})'>
-                        View Items
-                    </button>
-
-                    <button type="button" class="primary"
-                        onclick='useStorageLocation(${JSON.stringify(location)})'>
-                        Use for New Item
-                    </button>
-
-                    ${items.length === 0 ? `
-                        <button type="button" class="danger"
-                            onclick='deleteEmptyStorageLocation(${JSON.stringify(location)})'>
-                            Remove
-                        </button>
-                    ` : ""}
-                </div>
-
-                <div class="bin-items" id="${safeId}">
-                    ${itemRows}
-                </div>
-            </div>
-        `;
-    }).join("");
-}
-
 
 function printMeasurementGrid() {
     const target = document.getElementById("measurementGridPrint");
