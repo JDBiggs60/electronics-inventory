@@ -360,6 +360,17 @@ button {
         }
         @page { margin: 0.35in; }
 
+
+/* Multiple-photo upgrade */
+.multi-photo-area{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:8px}
+.photo-slot,.extra-photo-card{border:1px solid #d7dce3;border-radius:10px;padding:12px;background:#f8fafc}
+.photo-slot-title{font-weight:700;margin-bottom:8px}
+.multi-photo-preview{display:none;width:100%;max-height:220px;object-fit:contain;background:white;border:1px solid #ddd;border-radius:8px;margin-top:10px}
+.extra-photo-card{margin-top:10px}
+.saved-photo-strip{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px}
+.saved-photo-strip img{width:86px!important;height:86px!important;flex:0 0 86px;object-fit:contain!important;margin:0!important;border:1px solid #ddd;border-radius:8px;background:white}
+@media(max-width:700px){.multi-photo-area{grid-template-columns:1fr}}
+
 </style>
 </head>
 
@@ -423,15 +434,34 @@ button {
         <div class="form-grid">
 
             <div class="full">
-                <label>Photo</label>
-                <div class="photo-picker">
-                    <button type="button" class="photo-picker-btn primary" id="takePhotoButton">Take Photo</button>
-                    <button type="button" class="photo-picker-btn" id="choosePhotoButton">Photo Library / Files</button>
+                <label>Photos</label>
+                <div class="lookup-hint" style="margin-bottom:8px;">Front and back are recommended. Add extra close-ups for labels, connectors, or markings.</div>
+                <div class="multi-photo-area">
+                    <div class="photo-slot">
+                        <div class="photo-slot-title">Front Photo</div>
+                        <div class="photo-picker">
+                            <button type="button" class="photo-picker-btn primary" id="takePhotoButton">Take Front Photo</button>
+                            <button type="button" class="photo-picker-btn" id="choosePhotoButton">Choose Front Photo</button>
+                        </div>
+                        <div id="photoFileName" class="photo-file-name">No front photo selected</div>
+                        <input type="file" id="photo" class="hidden-photo-input" accept="image/*">
+                        <input type="file" id="cameraPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
+                        <img id="photoPreview" class="multi-photo-preview">
+                    </div>
+                    <div class="photo-slot">
+                        <div class="photo-slot-title">Back Photo</div>
+                        <div class="photo-picker">
+                            <button type="button" class="photo-picker-btn primary" id="takeBackPhotoButton">Take Back Photo</button>
+                            <button type="button" class="photo-picker-btn" id="chooseBackPhotoButton">Choose Back Photo</button>
+                        </div>
+                        <div id="backPhotoFileName" class="photo-file-name">No back photo selected</div>
+                        <input type="file" id="backPhoto" class="hidden-photo-input" accept="image/*">
+                        <input type="file" id="cameraBackPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
+                        <img id="backPhotoPreview" class="multi-photo-preview">
+                    </div>
                 </div>
-                <div id="photoFileName" class="photo-file-name">No photo selected</div>
-                <input type="file" id="photo" class="hidden-photo-input" accept="image/*">
-                <input type="file" id="cameraPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
-                <img id="photoPreview" class="photo-preview">
+                <div class="buttons"><button type="button" class="secondary" onclick="addExtraPhotoSlot()">+ Add Another Photo</button></div>
+                <div id="extraPhotos"></div>
             </div>
 
             <div>
@@ -645,6 +675,10 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let inventory = [];
 let currentPhoto = "";
+let currentBackPhoto = "";
+let currentExtraPhotos = [];
+let savedPhotosByItem = {};
+let extraPhotoCounter = 0;
 let currentUser = null;
 let realtimeChannel = null;
 let barcodeStream = null;
@@ -654,76 +688,58 @@ let barcodeScanActive = false;
 const photoInput = document.getElementById("photo");
 const cameraPhotoInput = document.getElementById("cameraPhoto");
 const photoPreview = document.getElementById("photoPreview");
+const backPhotoInput = document.getElementById("backPhoto");
+const cameraBackPhotoInput = document.getElementById("cameraBackPhoto");
+const backPhotoPreview = document.getElementById("backPhotoPreview");
 
-document.getElementById("takePhotoButton").addEventListener("click", function () {
-    cameraPhotoInput.click();
+document.getElementById("takePhotoButton").addEventListener("click",()=>cameraPhotoInput.click());
+document.getElementById("choosePhotoButton").addEventListener("click",()=>photoInput.click());
+document.getElementById("takeBackPhotoButton").addEventListener("click",()=>cameraBackPhotoInput.click());
+document.getElementById("chooseBackPhotoButton").addEventListener("click",()=>backPhotoInput.click());
+
+function copyCameraFileToInput(cameraInput,targetInput){
+ const file=cameraInput.files?.[0]; if(!file)return;
+ try{const transfer=new DataTransfer();transfer.items.add(file);targetInput.files=transfer.files;targetInput.dispatchEvent(new Event("change"))}
+ catch(error){console.error(error);alert("The camera photo could not be loaded. Please use Photo Library / Files.")}
+}
+cameraPhotoInput.addEventListener("change",()=>copyCameraFileToInput(cameraPhotoInput,photoInput));
+cameraBackPhotoInput.addEventListener("change",()=>copyCameraFileToInput(cameraBackPhotoInput,backPhotoInput));
+
+function compressPhotoFile(file,maxSize=700,quality=.72){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();reader.onerror=reject;
+  reader.onload=event=>{const image=new Image();image.onerror=reject;image.onload=()=>{
+   const canvas=document.createElement("canvas");let width=image.width,height=image.height;
+   if(width>height&&width>maxSize){height*=maxSize/width;width=maxSize}else if(height>maxSize){width*=maxSize/height;height=maxSize}
+   canvas.width=Math.round(width);canvas.height=Math.round(height);canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
+   resolve(canvas.toDataURL("image/jpeg",quality));
+  };image.src=event.target.result};reader.readAsDataURL(file);
+ });
+}
+
+photoInput.addEventListener("change",async function(){
+ const file=this.files?.[0];if(!file)return;document.getElementById("photoFileName").textContent=file.name||"Front photo selected";
+ try{currentPhoto=await compressPhotoFile(file);photoPreview.src=currentPhoto;photoPreview.style.display="block";await identifyElectronics(currentPhoto)}
+ catch(error){console.error(error);alert("The front photo could not be loaded.")}
+});
+backPhotoInput.addEventListener("change",async function(){
+ const file=this.files?.[0];if(!file)return;document.getElementById("backPhotoFileName").textContent=file.name||"Back photo selected";
+ try{currentBackPhoto=await compressPhotoFile(file);backPhotoPreview.src=currentBackPhoto;backPhotoPreview.style.display="block";setSyncStatus("Back photo ready. It will be saved with this item.")}
+ catch(error){console.error(error);alert("The back photo could not be loaded.")}
 });
 
-document.getElementById("choosePhotoButton").addEventListener("click", function () {
-    photoInput.click();
-});
-
-cameraPhotoInput.addEventListener("change", function () {
-    const file = this.files?.[0];
-    if (!file) return;
-
-    try {
-        const transfer = new DataTransfer();
-        transfer.items.add(file);
-        photoInput.files = transfer.files;
-        photoInput.dispatchEvent(new Event("change"));
-    } catch (error) {
-        console.error(error);
-        alert("The camera photo could not be loaded. Please use Photo Library / Files.");
-    }
-});
-
-photoInput.addEventListener("change", function () {
-    const file = this.files[0];
-    if (!file) return;
-
-    document.getElementById("photoFileName").textContent = file.name || "Photo selected";
-
-    const reader = new FileReader();
-
-    reader.onload = function (event) {
-        const image = new Image();
-
-        image.onload = async function () {
-            const canvas = document.createElement("canvas");
-            const maxSize = 700;
-
-            let width = image.width;
-            let height = image.height;
-
-            if (width > height && width > maxSize) {
-                height *= maxSize / width;
-                width = maxSize;
-            } else if (height > maxSize) {
-                width *= maxSize / height;
-                height = maxSize;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(image, 0, 0, width, height);
-
-            currentPhoto = canvas.toDataURL("image/jpeg", 0.72);
-
-            photoPreview.src = currentPhoto;
-            photoPreview.style.display = "block";
-
-            await identifyElectronics(currentPhoto);
-        };
-
-        image.src = event.target.result;
-    };
-
-    reader.readAsDataURL(file);
-});
-
+function addExtraPhotoSlot(){
+ const id=++extraPhotoCounter,wrap=document.createElement("div");wrap.className="extra-photo-card";wrap.id="extraPhotoCard"+id;
+ wrap.innerHTML=`<div class="photo-slot-title">Extra Photo ${id}</div><input type="file" id="extraPhotoInput${id}" accept="image/*"><img id="extraPhotoPreview${id}" class="multi-photo-preview"><div class="buttons"><button type="button" class="danger" onclick="removeExtraPhotoSlot(${id})">Remove</button></div>`;
+ document.getElementById("extraPhotos").appendChild(wrap);
+ document.getElementById("extraPhotoInput"+id).addEventListener("change",async function(){
+  const file=this.files?.[0];if(!file)return;
+  try{const data=await compressPhotoFile(file),existing=currentExtraPhotos.find(p=>p.id===id);if(existing)existing.data=data;else currentExtraPhotos.push({id,data});
+   const preview=document.getElementById("extraPhotoPreview"+id);preview.src=data;preview.style.display="block";setSyncStatus("Extra photo ready. It will be saved with this item.")}
+  catch(error){console.error(error);alert("That extra photo could not be loaded.")}
+ });
+}
+function removeExtraPhotoSlot(id){currentExtraPhotos=currentExtraPhotos.filter(p=>p.id!==id);document.getElementById("extraPhotoCard"+id)?.remove()}
 
 async function identifyElectronics(imageData) {
     if (!imageData) return;
@@ -1199,6 +1215,21 @@ function rowToItem(row) {
     };
 }
 
+async function loadSavedPhotos(){
+ savedPhotosByItem={};if(!currentUser)return;
+ const {data,error}=await db.from("inventory_item_photos").select("*").eq("user_id",currentUser.id).order("sort_order",{ascending:true});
+ if(error){console.error("Could not load multiple photos:",error);return}
+ (data||[]).forEach(row=>{const itemId=String(row.inventory_item_id??row.item_id??"");const photoData=row.photo_path||row.image_path||row.photo_url||row.image_url||row.photo_data||"";
+  if(!itemId||!photoData)return;if(!savedPhotosByItem[itemId])savedPhotosByItem[itemId]=[];savedPhotosByItem[itemId].push({photo:photoData,type:row.photo_type||row.kind||""})});
+}
+function getItemPhotos(item){const photos=[];if(item.photo)photos.push(item.photo);(savedPhotosByItem[String(item.id)]||[]).forEach(p=>{if(p.photo&&!photos.includes(p.photo))photos.push(p.photo)});return photos}
+async function saveAdditionalPhotos(itemId){
+ const photos=[];if(currentBackPhoto)photos.push({photo:currentBackPhoto,type:"back"});
+ currentExtraPhotos.filter(p=>p.data).forEach((p,i)=>photos.push({photo:p.data,type:"extra-"+(i+1)}));if(!photos.length)return;
+ const rows=photos.map((p,i)=>({inventory_item_id:itemId,user_id:currentUser.id,photo_path:p.photo,photo_type:p.type,sort_order:i+2}));
+ const {error}=await db.from("inventory_item_photos").insert(rows);if(error)throw error;
+}
+
 async function loadInventory() {
     if (!currentUser) return;
 
@@ -1215,6 +1246,7 @@ async function loadInventory() {
     }
 
     inventory = (data || []).map(rowToItem);
+    await loadSavedPhotos();
     renderInventory();
     setSyncStatus("Cloud synced");
 }
@@ -1348,7 +1380,7 @@ async function saveItem() {
 
     setSyncStatus("Saving to cloud…");
 
-    const { error } = await db
+    const { data: insertedRows, error } = await db
         .from("inventory_items")
         .insert({
             user_id: currentUser.id,
@@ -1363,12 +1395,21 @@ async function saveItem() {
             condition,
             notes,
             photo_path: currentPhoto || null
-        });
+        })
+        .select("id");
 
     if (error) {
         setSyncStatus("Save failed: " + error.message, false);
         alert("Could not save item: " + error.message);
         return;
+    }
+
+    try {
+        const newItemId = insertedRows?.[0]?.id;
+        if (newItemId) await saveAdditionalPhotos(newItemId);
+    } catch (photoError) {
+        console.error("Additional photo save failed:", photoError);
+        alert("The item was saved, but the extra photos could not be saved: " + (photoError.message || "Unknown error"));
     }
 
     clearForm();
@@ -1445,25 +1486,18 @@ async function removeOne(id) {
 
 function clearForm() {
     stopBarcodeScanner();
-    document.getElementById("itemName").value = "";
-    document.getElementById("section").value = "";
-    document.getElementById("category").value = "";
-    document.getElementById("manufacturer").value = "";
-    document.getElementById("partNumber").value = "";
-    document.getElementById("barcode").value = "";
-    document.getElementById("quantity").value = 1;
-    document.getElementById("location").value = "";
-    document.getElementById("condition").value = "New";
-    document.getElementById("notes").value = "";
-    document.getElementById("photo").value = "";
-    document.getElementById("cameraPhoto").value = "";
-    document.getElementById("photoFileName").textContent = "No photo selected";
-
-    currentPhoto = "";
-    photoPreview.src = "";
-    photoPreview.style.display = "none";
-
-    document.getElementById("duplicateWarning").style.display = "none";
+    ["itemName","manufacturer","partNumber","barcode","location","notes"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("section").value="";
+    document.getElementById("category").value="";
+    document.getElementById("quantity").value=1;
+    document.getElementById("condition").value="New";
+    ["photo","cameraPhoto","backPhoto","cameraBackPhoto"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("photoFileName").textContent="No front photo selected";
+    document.getElementById("backPhotoFileName").textContent="No back photo selected";
+    currentPhoto="";currentBackPhoto="";currentExtraPhotos=[];extraPhotoCounter=0;
+    photoPreview.src="";photoPreview.style.display="none";backPhotoPreview.src="";backPhotoPreview.style.display="none";
+    document.getElementById("extraPhotos").innerHTML="";
+    document.getElementById("duplicateWarning").style.display="none";
 }
 
 let inventoryView = "cards";
@@ -1552,7 +1586,7 @@ function renderInventory() {
         } else {
             tableBody.innerHTML = filtered.map(item => `
                 <tr>
-                    <td>${item.photo ? `<img src="${item.photo}" alt="">` : ""}</td>
+                    <td>${getItemPhotos(item)[0] ? `<img src="${getItemPhotos(item)[0]}" alt="">` : ""}</td>
                     <td><b>${escapeHTML(item.name)}</b></td>
                     <td>${escapeHTML(item.section)}</td>
                     <td>${escapeHTML(item.category)}</td>
@@ -1575,7 +1609,7 @@ function renderInventory() {
             inventoryDiv.innerHTML = filtered.map(item => `
                 <div class="item-card">
 
-                    ${item.photo ? `<img src="${item.photo}" alt="">` : ""}
+                    ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="">`).join("")}</div>` : ""}
 
                     ${item.section
                         ? `<div class="item-info"><b>Section:</b> ${escapeHTML(item.section)}</div>`
@@ -1794,6 +1828,11 @@ function startRealtime() {
             () => {
                 loadInventory();
             }
+        )
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "inventory_item_photos", filter: "user_id=eq." + currentUser.id },
+            () => { loadInventory(); }
         )
         .subscribe();
 }
