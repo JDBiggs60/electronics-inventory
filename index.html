@@ -6,7 +6,9 @@
 <title>Electronics Inventory</title>
 
 <style>
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 body {
     margin: 0;
@@ -22,8 +24,15 @@ header {
     text-align: center;
 }
 
-header h1 { margin: 0; font-size: 28px; }
-header p { margin: 7px 0 0; color: #d1d5db; }
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 7px 0 0;
+    color: #d1d5db;
+}
 
 .container {
     max-width: 1100px;
@@ -60,7 +69,9 @@ header p { margin: 7px 0 0; color: #d1d5db; }
     box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 
-.panel h2 { margin-top: 0; }
+.panel h2 {
+    margin-top: 0;
+}
 
 .form-grid {
     display: grid;
@@ -68,7 +79,9 @@ header p { margin: 7px 0 0; color: #d1d5db; }
     gap: 13px;
 }
 
-.full { grid-column: 1 / -1; }
+.full {
+    grid-column: 1 / -1;
+}
 
 label {
     display: block;
@@ -99,9 +112,20 @@ button {
     cursor: pointer;
 }
 
-.primary { background: #2563eb; color: white; }
-.secondary { background: #e5e7eb; color: #111827; }
-.danger { background: #dc2626; color: white; }
+.primary {
+    background: #2563eb;
+    color: white;
+}
+
+.secondary {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.danger {
+    background: #dc2626;
+    color: white;
+}
 
 .buttons {
     display: flex;
@@ -126,57 +150,25 @@ button {
     margin-bottom: 15px;
 }
 
-.search-row input { flex: 1; }
-
-.barcode-row {
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
+.search-row input {
+    flex: 1;
 }
 
-.barcode-row input { flex: 1; min-width: 0; }
-.barcode-row button { white-space: nowrap; }
+.barcode-row { display:flex; gap:8px; align-items:stretch; }
+.barcode-row input { flex:1; min-width:0; }
+.barcode-row button { white-space:nowrap; }
+.scanner-box { display:none; margin-top:10px; padding:12px; border:1px solid #cbd5e1; border-radius:9px; background:#f8fafc; }
+.scanner-box video { width:100%; max-height:320px; object-fit:cover; border-radius:8px; background:#111827; }
+.scanner-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:9px; }
+.lookup-hint { margin-top:7px; color:#64748b; font-size:13px; }
 
-.scanner-box {
-    display: none;
-    margin-top: 10px;
-    padding: 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 9px;
-    background: #f8fafc;
-}
-
-.scanner-box video {
-    width: 100%;
-    max-height: 320px;
-    object-fit: cover;
-    border-radius: 8px;
-    background: #111827;
-}
-
-.scanner-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 9px;
-}
-
-.lookup-hint,
-.location-hint {
-    margin-top: 7px;
-    color: #64748b;
-    font-size: 13px;
-}
-
-.inventory-grid,
-.location-grid {
+.inventory-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 14px;
 }
 
-.item-card,
-.location-card {
+.item-card {
     border: 1px solid #d7dce3;
     border-radius: 10px;
     padding: 14px;
@@ -192,8 +184,7 @@ button {
     margin-bottom: 10px;
 }
 
-.item-card h3,
-.location-card h3 {
+.item-card h3 {
     margin: 0 0 8px;
 }
 
@@ -234,6 +225,7 @@ button {
     padding: 35px 10px;
 }
 
+
 .auth-wrap {
     max-width: 520px;
     margin: 32px auto;
@@ -247,7 +239,9 @@ button {
     box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 
-.auth-card h2 { margin-top: 0; }
+.auth-card h2 {
+    margin-top: 0;
+}
 
 .auth-actions {
     display: flex;
@@ -262,7 +256,9 @@ button {
     min-height: 20px;
 }
 
-.app-hidden { display: none; }
+.app-hidden {
+    display: none;
+}
 
 .sync-bar {
     max-width: 1100px;
@@ -277,59 +273,143 @@ button {
     color: #475569;
 }
 
-.sync-good { color: #166534; }
-.sync-bad { color: #b91c1c; }
-
-.location-tools {
-    background: #f8fafc;
-    border: 1px solid #dbe3ec;
-    border-radius: 10px;
-    padding: 14px;
+.sync-good {
+    color: #166534;
 }
 
-.location-builder {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.location-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-}
-
-.location-card .count {
-    color: #475569;
-    line-height: 1.6;
-}
-
-.active-location-filter {
-    display: none;
-    background: #eff6ff;
-    border: 1px solid #93c5fd;
-    color: #1e3a8a;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
+.sync-bad {
+    color: #b91c1c;
 }
 
 @media (max-width: 700px) {
     .form-grid,
-    .inventory-grid,
-    .location-grid,
-    .location-builder {
+    .inventory-grid {
         grid-template-columns: 1fr;
     }
 
-    .stats { grid-template-columns: 1fr; }
-
-    .barcode-row {
-        flex-direction: column;
+    .stats {
+        grid-template-columns: 1fr;
     }
 }
+
+        .photo-picker { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+        .photo-picker-btn { border:0; border-radius:10px; padding:12px 16px; font-size:16px; font-weight:700; cursor:pointer; background:#e5e7eb; color:#111827; }
+        .photo-picker-btn.primary { background:#2563eb; color:white; }
+        .photo-file-name { margin-top:8px; color:#64748b; font-size:14px; }
+        .hidden-photo-input { display:none; }
+
+
+        .inventory-tools {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .view-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0 14px;
+        }
+        .inventory-table-wrap {
+            overflow-x: auto;
+            display: none;
+        }
+        .inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        .inventory-table th, .inventory-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 9px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .inventory-table th {
+            background: #f8fafc;
+            position: sticky;
+            top: 0;
+        }
+        .inventory-table img {
+            width: 54px;
+            height: 54px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .measurement-panel {
+            margin-top: 18px;
+        }
+        #measurementGridPrint {
+            display: none;
+        }
+        @media (max-width: 760px) {
+            .inventory-tools { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body.printing-grid * { visibility: hidden !important; }
+            body.printing-grid #measurementGridPrint,
+            body.printing-grid #measurementGridPrint * { visibility: visible !important; }
+            body.printing-grid #measurementGridPrint {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+        @page { margin: 0.35in; }
+
+
+/* Multiple-photo upgrade */
+.multi-photo-area{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:8px}
+.photo-slot,.extra-photo-card{border:1px solid #d7dce3;border-radius:10px;padding:12px;background:#f8fafc}
+.photo-slot-title{font-weight:700;margin-bottom:8px}
+.multi-photo-preview{display:none;width:100%;max-height:220px;object-fit:contain;background:white;border:1px solid #ddd;border-radius:8px;margin-top:10px}
+.extra-photo-card{margin-top:10px}
+.saved-photo-strip{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px}
+.saved-photo-strip img{width:86px!important;height:86px!important;flex:0 0 86px;object-fit:contain!important;margin:0!important;border:1px solid #ddd;border-radius:8px;background:white}
+@media(max-width:700px){.multi-photo-area{grid-template-columns:1fr}}
+
+
+/* Storage Bins / Locations */
+.bins-toolbar {
+    display: grid;
+    grid-template-columns: 2fr auto;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.bins-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.bin-card {
+    border: 1px solid #d7dce3;
+    border-radius: 10px;
+    padding: 14px;
+    background: #fafafa;
+}
+.bin-card h3 { margin: 0 0 7px; }
+.bin-count { color: #475569; margin-bottom: 10px; }
+.bin-items {
+    display: none;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+}
+.bin-item-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid #eef2f7;
+}
+.bin-item-row:last-child { border-bottom: 0; }
+@media (max-width: 700px) {
+    .bins-toolbar, .bins-grid { grid-template-columns: 1fr; }
+}
+
 </style>
 </head>
 
@@ -387,19 +467,63 @@ button {
     </div>
 
     <div class="panel">
+
         <h2>Add Electronic Item</h2>
 
         <div class="form-grid">
 
             <div class="full">
-                <label>Photo</label>
-                <input type="file" id="photo" accept="image/*">
-                <img id="photoPreview" class="photo-preview">
+                <label>Photos</label>
+                <div class="lookup-hint" style="margin-bottom:8px;">Front and back are recommended. Add extra close-ups for labels, connectors, or markings.</div>
+                <div class="multi-photo-area">
+                    <div class="photo-slot">
+                        <div class="photo-slot-title">Front Photo</div>
+                        <div class="photo-picker">
+                            <button type="button" class="photo-picker-btn primary" id="takePhotoButton">Take Front Photo</button>
+                            <button type="button" class="photo-picker-btn" id="choosePhotoButton">Choose Front Photo</button>
+                        </div>
+                        <div id="photoFileName" class="photo-file-name">No front photo selected</div>
+                        <input type="file" id="photo" class="hidden-photo-input" accept="image/*">
+                        <input type="file" id="cameraPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
+                        <img id="photoPreview" class="multi-photo-preview">
+                    </div>
+                    <div class="photo-slot">
+                        <div class="photo-slot-title">Back Photo</div>
+                        <div class="photo-picker">
+                            <button type="button" class="photo-picker-btn primary" id="takeBackPhotoButton">Take Back Photo</button>
+                            <button type="button" class="photo-picker-btn" id="chooseBackPhotoButton">Choose Back Photo</button>
+                        </div>
+                        <div id="backPhotoFileName" class="photo-file-name">No back photo selected</div>
+                        <input type="file" id="backPhoto" class="hidden-photo-input" accept="image/*">
+                        <input type="file" id="cameraBackPhoto" class="hidden-photo-input" accept="image/*" capture="environment">
+                        <img id="backPhotoPreview" class="multi-photo-preview">
+                    </div>
+                </div>
+                <div class="buttons"><button type="button" class="secondary" onclick="addExtraPhotoSlot()">+ Add Another Photo</button></div>
+                <div id="extraPhotos"></div>
             </div>
 
             <div>
                 <label>Item Name *</label>
-                <input id="itemName" placeholder="Example: Stepper Motor Driver">
+                <input
+                    id="itemName"
+                    placeholder="Example: Stepper Motor Driver"
+                >
+            </div>
+
+            <div>
+                <label>Section</label>
+                <select id="section">
+                    <option value="">Choose section</option>
+                    <option>Electronics</option>
+                    <option>CNC &amp; Automation</option>
+                    <option>Tools</option>
+                    <option>Hardware &amp; Fasteners</option>
+                    <option>Metal Stock</option>
+                    <option>Wood &amp; Materials</option>
+                    <option>3D Printing</option>
+                    <option>Other</option>
+                </select>
             </div>
 
             <div>
@@ -426,12 +550,18 @@ button {
 
             <div>
                 <label>Manufacturer</label>
-                <input id="manufacturer" placeholder="Example: StepperOnline">
+                <input
+                    id="manufacturer"
+                    placeholder="Example: StepperOnline"
+                >
             </div>
 
             <div>
                 <label>Model / Part Number</label>
-                <input id="partNumber" placeholder="Example: DM542T">
+                <input
+                    id="partNumber"
+                    placeholder="Example: DM542T"
+                >
             </div>
 
             <div>
@@ -440,7 +570,6 @@ button {
                     <input id="barcode" inputmode="numeric" autocomplete="off" placeholder="Scan or enter barcode">
                     <button type="button" class="secondary" onclick="startBarcodeScanner()">Scan Barcode</button>
                 </div>
-
                 <div id="scannerBox" class="scanner-box">
                     <video id="barcodeVideo" playsinline muted></video>
                     <div class="scanner-actions">
@@ -451,41 +580,20 @@ button {
 
             <div>
                 <label>Quantity</label>
-                <input id="quantity" type="number" min="1" value="1">
+                <input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value="1"
+                >
             </div>
 
-            <div class="full location-tools">
+            <div>
                 <label>Storage Location *</label>
-
-                <select id="existingLocation" onchange="useExistingLocation()">
-                    <option value="">Choose an existing location</option>
-                </select>
-
-                <div class="location-hint">
-                    Pick a location you have already used, or build a new one below.
-                </div>
-
-                <div class="location-builder">
-                    <input id="locationArea" placeholder="Cabinet / Box / Shelf, e.g. Cabinet A">
-                    <input id="locationSection" placeholder="Drawer / Shelf, e.g. Drawer 7">
-                    <input id="locationBin" placeholder="Bin / Section, e.g. Bin 3">
-                </div>
-
-                <div class="location-actions">
-                    <button type="button" class="secondary" onclick="buildLocation()">Use This Location</button>
-                    <button type="button" class="secondary" onclick="clearLocationBuilder()">Clear Location Builder</button>
-                </div>
-
                 <input
                     id="location"
-                    style="margin-top:10px;"
-                    placeholder="Final location, e.g. Cabinet A - Drawer 7 - Bin 3"
-                    oninput="syncBuilderFromTypedLocation()"
+                    placeholder="Example: Cabinet A - Drawer 7"
                 >
-
-                <div class="location-hint">
-                    The final location above is what will be saved with the item. You can also type it directly.
-                </div>
             </div>
 
             <div>
@@ -500,14 +608,15 @@ button {
 
             <div class="full">
                 <label>Notes</label>
-                <textarea id="notes" placeholder="Voltage, specifications, what it came from, project ideas, etc."></textarea>
+                <textarea
+                    id="notes"
+                    placeholder="Voltage, specifications, what it came from, project ideas, etc."
+                ></textarea>
             </div>
 
             <div class="full">
                 <button type="button" class="secondary" onclick="lookUpPartOnline()">Look Up Part Online</button>
-                <div class="lookup-hint">
-                    Searches the web using the barcode, manufacturer, model/part number, and item name already in the form.
-                </div>
+                <div class="lookup-hint">Searches the web using the barcode, manufacturer, model/part number, and item name already in the form.</div>
             </div>
 
         </div>
@@ -515,36 +624,101 @@ button {
         <div id="duplicateWarning" class="warning"></div>
 
         <div class="buttons">
-            <button class="primary" onclick="saveItem()">Save Item</button>
-            <button class="secondary" onclick="clearForm()">Clear</button>
+            <button class="primary" onclick="saveItem()">
+                Save Item
+            </button>
+
+            <button class="secondary" onclick="clearForm()">
+                Clear
+            </button>
         </div>
+
     </div>
 
     <div class="panel">
-        <h2>Storage Locations</h2>
-        <p class="location-hint" style="margin-top:-4px;margin-bottom:14px;">
-            This list is built automatically from the locations already used by your inventory.
-        </p>
 
-        <div id="locationGrid" class="location-grid"></div>
-    </div>
-
-    <div class="panel">
         <h2>My Electronics</h2>
 
-        <div id="activeLocationFilter" class="active-location-filter"></div>
-
-        <div class="search-row">
+        <div class="inventory-tools">
             <input
                 id="search"
                 placeholder="Search name, part number, location, category..."
                 oninput="renderInventory()"
             >
-            <button class="secondary" onclick="clearInventoryFilter()">Show All</button>
+
+            <select id="filterSection" onchange="renderInventory()">
+                <option value="">All Sections</option>
+            </select>
+
+            <select id="filterCategory" onchange="renderInventory()">
+                <option value="">All Categories</option>
+            </select>
+
+            <select id="filterLocation" onchange="renderInventory()">
+                <option value="">All Locations</option>
+            </select>
+        </div>
+
+        <div class="view-buttons">
+            <select id="sortInventory" onchange="renderInventory()" style="max-width:220px">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="az">Name A-Z</option>
+                <option value="za">Name Z-A</option>
+                <option value="location">Location A-Z</option>
+            </select>
+
+            <button type="button" class="primary" onclick="setInventoryView('cards')">Card View</button>
+            <button type="button" class="secondary" onclick="setInventoryView('list')">Inventory List</button>
         </div>
 
         <div id="inventory" class="inventory-grid"></div>
+
+        <div id="inventoryTableWrap" class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>Item</th>
+                        <th>Section</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Location</th>
+                        <th>Manufacturer</th>
+                        <th>Part #</th>
+                        <th>Added</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+            </table>
+        </div>
+
     </div>
+
+
+    <div class="panel" id="binsPanel">
+        <h2>Storage Bins &amp; Locations</h2>
+        <p>Use names such as <b>Cabinet A - Drawer 7 - Bin 3</b>. Locations already used by inventory items appear automatically.</p>
+
+        <div class="bins-toolbar">
+            <input id="newBinLocation" placeholder="Example: Cabinet A - Drawer 7 - Bin 3">
+            <button type="button" class="primary" onclick="addStorageLocation()">Add Location</button>
+        </div>
+
+        <div class="search-row">
+            <input id="binSearch" placeholder="Search bins / locations..." oninput="renderBins()">
+        </div>
+
+        <div id="binsGrid" class="bins-grid"></div>
+    </div>
+
+    <div class="panel measurement-panel">
+        <h2>Printable Measurement Grid</h2>
+        <p>Print a one-inch grid with quarter-inch subdivisions for photographing and measuring parts.</p>
+        <button type="button" class="primary" onclick="printMeasurementGrid()">Print Measurement Grid</button>
+    </div>
+
+    <div id="measurementGridPrint"></div>
 
 </div>
 </div>
@@ -557,58 +731,90 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let inventory = [];
 let currentPhoto = "";
+let currentBackPhoto = "";
+let currentExtraPhotos = [];
+let savedPhotosByItem = {};
+let extraPhotoCounter = 0;
 let currentUser = null;
 let realtimeChannel = null;
 let barcodeStream = null;
 let barcodeDetector = null;
 let barcodeScanActive = false;
-let selectedLocationFilter = "";
 
 const photoInput = document.getElementById("photo");
+const cameraPhotoInput = document.getElementById("cameraPhoto");
 const photoPreview = document.getElementById("photoPreview");
+const backPhotoInput = document.getElementById("backPhoto");
+const cameraBackPhotoInput = document.getElementById("cameraBackPhoto");
+const backPhotoPreview = document.getElementById("backPhotoPreview");
 
-photoInput.addEventListener("change", function () {
-    const file = this.files[0];
-    if (!file) return;
+document.getElementById("takePhotoButton").addEventListener("click",()=>cameraPhotoInput.click());
+document.getElementById("choosePhotoButton").addEventListener("click",()=>photoInput.click());
+document.getElementById("takeBackPhotoButton").addEventListener("click",()=>cameraBackPhotoInput.click());
+document.getElementById("chooseBackPhotoButton").addEventListener("click",()=>backPhotoInput.click());
 
-    const reader = new FileReader();
+function copyCameraFileToInput(cameraInput,targetInput){
+ const file=cameraInput.files?.[0]; if(!file)return;
+ try{const transfer=new DataTransfer();transfer.items.add(file);targetInput.files=transfer.files;targetInput.dispatchEvent(new Event("change"))}
+ catch(error){console.error(error);alert("The camera photo could not be loaded. Please use Photo Library / Files.")}
+}
+cameraPhotoInput.addEventListener("change",()=>copyCameraFileToInput(cameraPhotoInput,photoInput));
+cameraBackPhotoInput.addEventListener("change",()=>copyCameraFileToInput(cameraBackPhotoInput,backPhotoInput));
 
-    reader.onload = function (event) {
-        const image = new Image();
+function compressPhotoFile(file,maxSize=700,quality=.72){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();reader.onerror=reject;
+  reader.onload=event=>{const image=new Image();image.onerror=reject;image.onload=()=>{
+   const canvas=document.createElement("canvas");let width=image.width,height=image.height;
+   if(width>height&&width>maxSize){height*=maxSize/width;width=maxSize}else if(height>maxSize){width*=maxSize/height;height=maxSize}
+   canvas.width=Math.round(width);canvas.height=Math.round(height);canvas.getContext("2d").drawImage(image,0,0,canvas.width,canvas.height);
+   resolve(canvas.toDataURL("image/jpeg",quality));
+  };image.src=event.target.result};reader.readAsDataURL(file);
+ });
+}
 
-        image.onload = async function () {
-            const canvas = document.createElement("canvas");
-            const maxSize = 700;
-
-            let width = image.width;
-            let height = image.height;
-
-            if (width > height && width > maxSize) {
-                height *= maxSize / width;
-                width = maxSize;
-            } else if (height > maxSize) {
-                width *= maxSize / height;
-                height = maxSize;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(image, 0, 0, width, height);
-
-            currentPhoto = canvas.toDataURL("image/jpeg", 0.72);
-            photoPreview.src = currentPhoto;
-            photoPreview.style.display = "block";
-
-            await identifyElectronics(currentPhoto);
-        };
-
-        image.src = event.target.result;
-    };
-
-    reader.readAsDataURL(file);
+photoInput.addEventListener("change",async function(){
+ const file=this.files?.[0];if(!file)return;document.getElementById("photoFileName").textContent=file.name||"Front photo selected";
+ try{currentPhoto=await compressPhotoFile(file);photoPreview.src=currentPhoto;photoPreview.style.display="block";await identifyElectronics(currentPhoto)}
+ catch(error){console.error(error);alert("The front photo could not be loaded.")}
 });
+backPhotoInput.addEventListener("change",async function(){
+ const file=this.files?.[0];if(!file)return;document.getElementById("backPhotoFileName").textContent=file.name||"Back photo selected";
+ try{currentBackPhoto=await compressPhotoFile(file);backPhotoPreview.src=currentBackPhoto;backPhotoPreview.style.display="block";setSyncStatus("Back photo ready. It will be saved with this item.")}
+ catch(error){console.error(error);alert("The back photo could not be loaded.")}
+});
+
+function addExtraPhotoSlot(){
+ const id=++extraPhotoCounter,wrap=document.createElement("div");wrap.className="extra-photo-card";wrap.id="extraPhotoCard"+id;
+ wrap.innerHTML=`
+  <div class="photo-slot-title">Extra Photo ${id}</div>
+  <div class="photo-picker">
+   <button type="button" class="photo-picker-btn primary" id="takeExtraPhotoButton${id}">Take Extra Photo</button>
+   <button type="button" class="photo-picker-btn" id="chooseExtraPhotoButton${id}">Choose Extra Photo</button>
+  </div>
+  <div id="extraPhotoFileName${id}" class="photo-file-name">No extra photo selected</div>
+  <input type="file" id="extraPhotoInput${id}" class="hidden-photo-input" accept="image/*">
+  <input type="file" id="cameraExtraPhotoInput${id}" class="hidden-photo-input" accept="image/*" capture="environment">
+  <img id="extraPhotoPreview${id}" class="multi-photo-preview">
+  <div class="buttons"><button type="button" class="danger" onclick="removeExtraPhotoSlot(${id})">Remove</button></div>`;
+ document.getElementById("extraPhotos").appendChild(wrap);
+
+ const extraInput=document.getElementById("extraPhotoInput"+id);
+ const extraCameraInput=document.getElementById("cameraExtraPhotoInput"+id);
+
+ document.getElementById("takeExtraPhotoButton"+id).addEventListener("click",()=>extraCameraInput.click());
+ document.getElementById("chooseExtraPhotoButton"+id).addEventListener("click",()=>extraInput.click());
+ extraCameraInput.addEventListener("change",()=>copyCameraFileToInput(extraCameraInput,extraInput));
+
+ extraInput.addEventListener("change",async function(){
+  const file=this.files?.[0];if(!file)return;
+  document.getElementById("extraPhotoFileName"+id).textContent=file.name||"Extra photo selected";
+  try{const data=await compressPhotoFile(file),existing=currentExtraPhotos.find(p=>p.id===id);if(existing)existing.data=data;else currentExtraPhotos.push({id,data});
+   const preview=document.getElementById("extraPhotoPreview"+id);preview.src=data;preview.style.display="block";setSyncStatus("Extra photo ready. It will be saved with this item.")}
+  catch(error){console.error(error);alert("That extra photo could not be loaded.")}
+ });
+}
+function removeExtraPhotoSlot(id){currentExtraPhotos=currentExtraPhotos.filter(p=>p.id!==id);document.getElementById("extraPhotoCard"+id)?.remove()}
 
 async function identifyElectronics(imageData) {
     if (!imageData) return;
@@ -622,6 +828,9 @@ async function identifyElectronics(imageData) {
 
         if (error) throw error;
 
+        // The Edge Function returns the AI result inside data.identification.
+        // Keep the older fallbacks too, so this remains compatible if the
+        // function response format changes later.
         const result =
             data?.identification ||
             data?.result ||
@@ -674,25 +883,58 @@ async function identifyElectronics(imageData) {
                 ? result.notes.trim()
                 : "";
 
-        if (name) document.getElementById("itemName").value = name;
-        if (manufacturer) document.getElementById("manufacturer").value = manufacturer;
-        if (partNumber) document.getElementById("partNumber").value = partNumber;
-        if (barcode) document.getElementById("barcode").value = barcode;
-
-        if (category) {
-            const categorySelect = document.getElementById("category");
-            const exactOption = Array.from(categorySelect.options).find(
-                option => normalize(option.value) === normalize(category)
-            );
-
-            if (exactOption) categorySelect.value = exactOption.value;
+        if (name) {
+            document.getElementById("itemName").value = name;
         }
 
+        if (manufacturer) {
+            document.getElementById("manufacturer").value = manufacturer;
+        }
+
+        if (partNumber) {
+            document.getElementById("partNumber").value = partNumber;
+        }
+
+        if (barcode) {
+            document.getElementById("barcode").value = barcode;
+        }
+
+        const mappedCategory = mapAICategory({
+            category, name, partNumber, specifications, visibleMarkings, notes: aiNotes
+        });
+
+        if (mappedCategory) {
+            document.getElementById("category").value = mappedCategory;
+        }
+
+        const mappedSection = mapInventorySection({
+            category: mappedCategory || category,
+            name,
+            partNumber,
+            specifications,
+            visibleMarkings,
+            notes: aiNotes
+        });
+
+        if (mappedSection) {
+            document.getElementById("section").value = mappedSection;
+        }
+
+        // Put useful AI information that does not have its own form field
+        // into Notes, without inventing anything.
         const noteParts = [];
 
-        if (specifications) noteParts.push("Specifications: " + specifications);
-        if (visibleMarkings) noteParts.push("Visible markings: " + visibleMarkings);
-        if (aiNotes) noteParts.push(aiNotes);
+        if (specifications) {
+            noteParts.push("Specifications: " + specifications);
+        }
+
+        if (visibleMarkings) {
+            noteParts.push("Visible markings: " + visibleMarkings);
+        }
+
+        if (aiNotes) {
+            noteParts.push(aiNotes);
+        }
 
         if (noteParts.length > 0) {
             document.getElementById("notes").value = noteParts.join("\n");
@@ -701,45 +943,26 @@ async function identifyElectronics(imageData) {
         setSyncStatus("AI identification complete — review the details before saving.");
     } catch (error) {
         console.error("AI identification failed:", error);
-        setSyncStatus(
-            "AI identification failed: " + (error.message || "Unknown error"),
-            false
-        );
+        setSyncStatus("AI identification failed: " + (error.message || "Unknown error"), false);
     }
 }
 
 async function startBarcodeScanner() {
     if (barcodeScanActive) return;
-
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("This browser cannot open the camera for barcode scanning.");
         return;
     }
-
     if (!("BarcodeDetector" in window)) {
-        alert(
-            "Automatic barcode scanning is not supported by this browser. " +
-            "You can still type the barcode number or photograph the label for AI identification."
-        );
+        alert("Automatic barcode scanning is not supported by this browser. You can still type the barcode number or photograph the label for AI identification.");
         return;
     }
 
     try {
         setSyncStatus("Opening camera for barcode scan…");
-
         const supportedFormats = await BarcodeDetector.getSupportedFormats();
-
-        const preferredFormats = [
-            "ean_13",
-            "ean_8",
-            "upc_a",
-            "upc_e",
-            "code_128",
-            "code_39",
-            "itf",
-            "qr_code",
-            "data_matrix"
-        ].filter(format => supportedFormats.includes(format));
+        const preferredFormats = ["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","qr_code","data_matrix"]
+            .filter(format => supportedFormats.includes(format));
 
         barcodeDetector = new BarcodeDetector({
             formats: preferredFormats.length ? preferredFormats : supportedFormats
@@ -752,38 +975,29 @@ async function startBarcodeScanner() {
 
         const scannerBox = document.getElementById("scannerBox");
         const video = document.getElementById("barcodeVideo");
-
         scannerBox.style.display = "block";
         video.srcObject = barcodeStream;
-
         await video.play();
 
         barcodeScanActive = true;
         setSyncStatus("Point the camera at the barcode…");
         scanBarcodeFrame();
-
     } catch (error) {
         console.error("Barcode scanner failed:", error);
         stopBarcodeScanner();
-        setSyncStatus(
-            "Barcode scanner could not start: " + (error.message || "Unknown error"),
-            false
-        );
+        setSyncStatus("Barcode scanner could not start: " + (error.message || "Unknown error"), false);
     }
 }
 
 async function scanBarcodeFrame() {
     if (!barcodeScanActive || !barcodeDetector) return;
-
     const video = document.getElementById("barcodeVideo");
 
     try {
         if (video.readyState >= 2) {
             const barcodes = await barcodeDetector.detect(video);
-
             if (barcodes && barcodes.length > 0) {
                 const value = String(barcodes[0].rawValue || "").trim();
-
                 if (value) {
                     document.getElementById("barcode").value = value;
                     stopBarcodeScanner();
@@ -801,19 +1015,15 @@ async function scanBarcodeFrame() {
 
 function stopBarcodeScanner() {
     barcodeScanActive = false;
-
     if (barcodeStream) {
         barcodeStream.getTracks().forEach(track => track.stop());
         barcodeStream = null;
     }
-
     const video = document.getElementById("barcodeVideo");
-
     if (video) {
         video.pause();
         video.srcObject = null;
     }
-
     const scannerBox = document.getElementById("scannerBox");
     if (scannerBox) scannerBox.style.display = "none";
 }
@@ -824,24 +1034,163 @@ function lookUpPartOnline() {
     const partNumber = document.getElementById("partNumber").value.trim();
     const itemName = document.getElementById("itemName").value.trim();
 
-    const query = [...new Set(
-        [barcode, manufacturer, partNumber, itemName].filter(Boolean)
-    )].join(" ").trim();
+    const query = [...new Set([barcode, manufacturer, partNumber, itemName].filter(Boolean))].join(" ").trim();
 
     if (!query) {
         alert("Add a barcode, manufacturer, model/part number, or item name first.");
         return;
     }
 
-    window.open(
-        "https://www.google.com/search?q=" + encodeURIComponent(query),
-        "_blank",
-        "noopener,noreferrer"
-    );
+    window.open("https://www.google.com/search?q=" + encodeURIComponent(query), "_blank", "noopener,noreferrer");
 }
 
 function normalize(value) {
     return String(value || "").trim().toLowerCase();
+}
+
+function mapAICategory(details = {}) {
+    const categorySelect = document.getElementById("category");
+    const aiCategory = normalize(details.category);
+
+    const exactOption = Array.from(categorySelect.options).find(
+        option => option.value && normalize(option.value) === aiCategory
+    );
+    if (exactOption) return exactOption.value;
+
+    const text = normalize([
+        details.category, details.name, details.partNumber,
+        details.specifications, details.visibleMarkings, details.notes
+    ].filter(Boolean).join(" "));
+
+    if (!text) return "";
+    const hasAny = (...terms) => terms.some(term => text.includes(term));
+
+    // Specific rules come first so "stepper motor driver" is not
+    // accidentally categorized as a Stepper Motor.
+    if (hasAny("stepper driver","motor driver","motor controller","dm542","dm556",
+        "tb6600","tb6560","a4988","drv8825","tmc2208","tmc2209","tmc2225",
+        "tmc5160","l298n","l293d")) return "Motor Driver";
+
+    if (hasAny("nema 17","nema17","nema 23","nema23","nema 24","nema24",
+        "nema 34","nema34","stepper motor","stepping motor")) return "Stepper Motor";
+
+    if (hasAny("arduino","uno r3","arduino uno","arduino nano","arduino mega",
+        "esp32","esp8266","nodemcu","raspberry pi pico","rp2040","stm32",
+        "teensy","microcontroller","development board","dev board"))
+        return "Arduino / Microcontroller";
+
+    if (hasAny("relay module","solid state relay","electromechanical relay",
+        "power relay","signal relay","relay board","relay")) return "Relay";
+
+    if (hasAny("power supply","switching supply","switch mode power supply","smps",
+        "ac adapter","dc adapter","power adapter","power brick","dc-dc converter",
+        "dc dc converter","buck converter","boost converter","voltage regulator module"))
+        return "Power Supply";
+
+    if (hasAny("limit switch","microswitch","micro switch","toggle switch",
+        "rocker switch","push button","pushbutton","selector switch",
+        "reed switch","rotary switch","switch")) return "Switch";
+
+    if (hasAny("proximity sensor","temperature sensor","humidity sensor",
+        "pressure sensor","photoelectric sensor","hall sensor","ultrasonic sensor",
+        "infrared sensor","ir sensor","motion sensor","accelerometer","gyroscope",
+        "encoder sensor","sensor module","sensor")) return "Sensor";
+
+    if (hasAny("lcd display","oled display","tft display","led display",
+        "display module","touchscreen","touch screen","seven segment","7-segment","display"))
+        return "Display";
+
+    if (hasAny("terminal block","connector","header pins","pin header","dupont",
+        "jst","molex","socket connector","plug connector","rj45","usb connector",
+        "barrel jack")) return "Connector";
+
+    if (hasAny("ribbon cable","jumper wire","hookup wire","hook-up wire",
+        "shielded cable","usb cable","power cable","signal cable","wire harness",
+        "wiring harness","cable","wire")) return "Wire / Cable";
+
+    if (hasAny("cnc controller","cnc breakout","breakout board","motion controller",
+        "torch height","thc controller","cnc interface","mach3 board","mach4 board",
+        "grbl controller")) return "CNC Electronics";
+
+    if (hasAny("3d printer","3d-printer","extruder board","hotend board",
+        "heated bed controller","printer control board")) return "3D Printer Electronics";
+
+    if (hasAny("control board","controller board","main board","mainboard",
+        "logic board","interface board","control module","controller module"))
+        return "Control Board";
+
+    if (hasAny("resistor","capacitor","diode","transistor","mosfet",
+        "integrated circuit","inductor","thermistor","potentiometer","fuse",
+        "bridge rectifier","op amp","op-amp","crystal oscillator",
+        "electronic component")) return "Electronic Component";
+
+    return aiCategory ? "Other" : "";
+}
+
+function mapInventorySection(details = {}) {
+    const text = normalize([
+        details.category, details.name, details.partNumber,
+        details.specifications, details.visibleMarkings, details.notes
+    ].filter(Boolean).join(" "));
+
+    if (!text) return "";
+
+    const hasAny = (...terms) => terms.some(term => text.includes(term));
+    const category = normalize(details.category);
+
+    // Trust a specific electronics category before looking at loose words
+    // in the notes. This prevents phrases such as "four mounting screws"
+    // from incorrectly turning a Stepper Motor into Hardware & Fasteners.
+    if (category === "cnc electronics") return "CNC & Automation";
+    if (category === "3d printer electronics") return "3D Printing";
+
+    if ([
+        "arduino / microcontroller", "control board", "stepper motor",
+        "motor driver", "power supply", "relay", "switch", "sensor",
+        "display", "connector", "wire / cable", "electronic component"
+    ].includes(category)) return "Electronics";
+
+    if (hasAny(
+        "cnc controller", "cnc breakout", "breakout board", "motion controller",
+        "torch height", "thc controller", "cnc interface", "mach3 board",
+        "mach4 board", "grbl controller", "linear rail", "ball screw",
+        "ballscrew", "lead screw", "leadscrew"
+    )) return "CNC & Automation";
+
+    if (hasAny(
+        "3d printer", "3d-printer", "filament", "hotend", "extruder",
+        "heated bed", "build plate"
+    )) return "3D Printing";
+
+    if (hasAny(
+        "arduino", "esp32", "microcontroller", "resistor", "capacitor",
+        "diode", "transistor", "mosfet", "relay", "sensor", "connector",
+        "power supply", "stepper motor", "stepping motor", "motor driver",
+        "control board", "electronic", "circuit"
+    )) return "Electronics";
+
+    if (hasAny(
+        "drill", "saw", "wrench", "socket set", "screwdriver", "pliers",
+        "multimeter", "caliper", "hand tool", "power tool"
+    )) return "Tools";
+
+    if (hasAny(
+        "bolt", "screw", "nut ", "washer", "fastener", "bearing",
+        "hinge", "bracket", "spring"
+    )) return "Hardware & Fasteners";
+
+    if (hasAny(
+        "steel bar", "steel plate", "steel tube", "steel tubing",
+        "aluminum bar", "aluminum plate", "aluminium", "angle iron",
+        "flat bar", "round bar", "square tube", "metal stock"
+    )) return "Metal Stock";
+
+    if (hasAny(
+        "lumber", "plywood", "hardwood", "softwood", "wood blank",
+        "acrylic sheet", "plastic sheet", "material stock"
+    )) return "Wood & Materials";
+
+    return "Other";
 }
 
 function setSyncStatus(message, good = true) {
@@ -911,9 +1260,7 @@ async function signUp() {
     if (data.session) {
         authMessage("");
     } else {
-        authMessage(
-            "Account created. Check your email for the confirmation message, then sign in."
-        );
+        authMessage("Account created. Check your email for the confirmation message, then sign in.");
     }
 }
 
@@ -926,6 +1273,7 @@ function rowToItem(row) {
     return {
         id: row.id,
         name: row.name || "",
+        section: row.section || "",
         category: row.category || "",
         manufacturer: row.manufacturer || "",
         partNumber: row.part_number || "",
@@ -935,10 +1283,26 @@ function rowToItem(row) {
         condition: row.condition || "New",
         notes: row.notes || "",
         photo: row.photo_path || "",
+        createdAt: row.created_at || "",
         dateAdded: row.created_at
             ? new Date(row.created_at).toLocaleDateString()
             : ""
     };
+}
+
+async function loadSavedPhotos(){
+ savedPhotosByItem={};if(!currentUser)return;
+ const {data,error}=await db.from("inventory_item_photos").select("*").eq("user_id",currentUser.id).order("sort_order",{ascending:true});
+ if(error){console.error("Could not load multiple photos:",error);return}
+ (data||[]).forEach(row=>{const itemId=String(row.inventory_item_id??row.item_id??"");const photoData=row.photo_path||row.image_path||row.photo_url||row.image_url||row.photo_data||"";
+  if(!itemId||!photoData)return;if(!savedPhotosByItem[itemId])savedPhotosByItem[itemId]=[];savedPhotosByItem[itemId].push({photo:photoData,type:row.photo_type||row.kind||""})});
+}
+function getItemPhotos(item){const photos=[];if(item.photo)photos.push(item.photo);(savedPhotosByItem[String(item.id)]||[]).forEach(p=>{if(p.photo&&!photos.includes(p.photo))photos.push(p.photo)});return photos}
+async function saveAdditionalPhotos(itemId){
+ const photos=[];if(currentBackPhoto)photos.push({photo:currentBackPhoto,type:"back"});
+ currentExtraPhotos.filter(p=>p.data).forEach((p,i)=>photos.push({photo:p.data,type:"extra-"+(i+1)}));if(!photos.length)return;
+ const rows=photos.map((p,i)=>({inventory_item_id:itemId,user_id:currentUser.id,photo_path:p.photo,photo_type:p.type,sort_order:i+2}));
+ const {error}=await db.from("inventory_item_photos").insert(rows);if(error)throw error;
 }
 
 async function loadInventory() {
@@ -957,176 +1321,77 @@ async function loadInventory() {
     }
 
     inventory = (data || []).map(rowToItem);
-
-    refreshLocationTools();
-    renderLocations();
+    await loadSavedPhotos();
     renderInventory();
-
     setSyncStatus("Cloud synced");
 }
 
-function findDuplicate(name, partNumber, barcode) {
+function duplicateWords(value) {
+    return normalize(value)
+        .replace(/[^a-z0-9]+/g, " ")
+        .split(/\s+/)
+        .filter(word => word.length >= 2);
+}
+
+function nameSimilarity(a, b) {
+    const aWords = [...new Set(duplicateWords(a))];
+    const bWords = [...new Set(duplicateWords(b))];
+    if (!aWords.length || !bWords.length) return 0;
+
+    const common = aWords.filter(word => bWords.includes(word)).length;
+    return common / Math.max(aWords.length, bWords.length);
+}
+
+function findDuplicate(name, partNumber, barcode, manufacturer = "") {
     const cleanName = normalize(name);
     const cleanPart = normalize(partNumber);
     const cleanBarcode = normalize(barcode);
+    const cleanMaker = normalize(manufacturer);
 
-    return inventory.find(item => {
-        if (cleanBarcode && normalize(item.barcode) === cleanBarcode) return true;
-        if (cleanPart && normalize(item.partNumber) === cleanPart) return true;
-        if (cleanName && normalize(item.name) === cleanName) return true;
-        return false;
-    });
-}
-
-function getLocations() {
-    const map = new Map();
+    let bestMatch = null;
+    let bestScore = 0;
+    let bestReason = "";
 
     inventory.forEach(item => {
-        const name = String(item.location || "").trim();
-        if (!name) return;
+        let score = 0;
+        let reason = "";
 
-        const key = normalize(name);
+        if (cleanBarcode && normalize(item.barcode) === cleanBarcode) {
+            score = 100;
+            reason = "same barcode";
+        } else if (cleanPart && normalize(item.partNumber) === cleanPart) {
+            score = 95;
+            reason = "same part number";
+        } else {
+            const similarity = nameSimilarity(cleanName, item.name);
+            const makerMatches =
+                cleanMaker &&
+                normalize(item.manufacturer) &&
+                cleanMaker === normalize(item.manufacturer);
 
-        if (!map.has(key)) {
-            map.set(key, {
-                name,
-                differentItems: 0,
-                totalPieces: 0
-            });
+            if (cleanName && normalize(item.name) === cleanName) {
+                score = 90;
+                reason = "same item name";
+            } else if (similarity >= 0.8 && makerMatches) {
+                score = 85;
+                reason = "very similar name and same manufacturer";
+            } else if (similarity >= 0.8) {
+                score = 75;
+                reason = "very similar item name";
+            } else if (similarity >= 0.6 && makerMatches) {
+                score = 70;
+                reason = "similar name and same manufacturer";
+            }
         }
 
-        const location = map.get(key);
-        location.differentItems += 1;
-        location.totalPieces += Number(item.quantity || 0);
+        if (score > bestScore) {
+            bestMatch = item;
+            bestScore = score;
+            bestReason = reason;
+        }
     });
 
-    return Array.from(map.values()).sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, {
-            numeric: true,
-            sensitivity: "base"
-        })
-    );
-}
-
-function refreshLocationTools() {
-    const select = document.getElementById("existingLocation");
-    if (!select) return;
-
-    const current = select.value;
-    const locations = getLocations();
-
-    select.innerHTML =
-        '<option value="">Choose an existing location</option>' +
-        locations.map(location =>
-            `<option value="${escapeHTML(location.name)}">${escapeHTML(location.name)}</option>`
-        ).join("");
-
-    if (locations.some(location => location.name === current)) {
-        select.value = current;
-    }
-}
-
-function useExistingLocation() {
-    const value = document.getElementById("existingLocation").value;
-
-    if (!value) return;
-
-    document.getElementById("location").value = value;
-    clearLocationBuilder(false);
-}
-
-function buildLocation() {
-    const parts = [
-        document.getElementById("locationArea").value.trim(),
-        document.getElementById("locationSection").value.trim(),
-        document.getElementById("locationBin").value.trim()
-    ].filter(Boolean);
-
-    if (parts.length === 0) {
-        alert("Enter at least one part of the storage location.");
-        return;
-    }
-
-    const location = parts.join(" - ");
-    document.getElementById("location").value = location;
-    document.getElementById("existingLocation").value = "";
-}
-
-function clearLocationBuilder(clearFinal = false) {
-    document.getElementById("locationArea").value = "";
-    document.getElementById("locationSection").value = "";
-    document.getElementById("locationBin").value = "";
-    document.getElementById("existingLocation").value = "";
-
-    if (clearFinal) {
-        document.getElementById("location").value = "";
-    }
-}
-
-function syncBuilderFromTypedLocation() {
-    document.getElementById("existingLocation").value = "";
-}
-
-function renderLocations() {
-    const grid = document.getElementById("locationGrid");
-    if (!grid) return;
-
-    const locations = getLocations();
-
-    if (locations.length === 0) {
-        grid.innerHTML =
-            '<div class="empty">No storage locations yet. Save your first item and its location will appear here.</div>';
-        return;
-    }
-
-    grid.innerHTML = locations.map(location => `
-        <div class="location-card">
-            <h3>${escapeHTML(location.name)}</h3>
-
-            <div class="count">
-                <b>${location.differentItems}</b> different item${location.differentItems === 1 ? "" : "s"}<br>
-                <b>${location.totalPieces}</b> total piece${location.totalPieces === 1 ? "" : "s"}
-            </div>
-
-            <div class="buttons">
-                <button
-                    class="secondary"
-                    onclick='viewLocation(${JSON.stringify(location.name)})'>
-                    View Items
-                </button>
-
-                <button
-                    class="secondary"
-                    onclick='chooseLocationForNewItem(${JSON.stringify(location.name)})'>
-                    Use for New Item
-                </button>
-            </div>
-        </div>
-    `).join("");
-}
-
-function viewLocation(location) {
-    selectedLocationFilter = location;
-    document.getElementById("search").value = "";
-    renderInventory();
-
-    const inventoryPanel = document.getElementById("inventory");
-    inventoryPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function chooseLocationForNewItem(location) {
-    document.getElementById("location").value = location;
-    document.getElementById("existingLocation").value = location;
-    clearLocationBuilder(false);
-
-    const locationField = document.getElementById("location");
-    locationField.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
-function clearInventoryFilter() {
-    selectedLocationFilter = "";
-    document.getElementById("search").value = "";
-    renderInventory();
+    return bestMatch ? { item: bestMatch, score: bestScore, reason: bestReason } : null;
 }
 
 async function saveItem() {
@@ -1136,6 +1401,7 @@ async function saveItem() {
     }
 
     const name = document.getElementById("itemName").value.trim();
+    const section = document.getElementById("section").value;
     const category = document.getElementById("category").value;
     const manufacturer = document.getElementById("manufacturer").value.trim();
     const partNumber = document.getElementById("partNumber").value.trim();
@@ -1155,12 +1421,12 @@ async function saveItem() {
         return;
     }
 
-    const duplicate = findDuplicate(name, partNumber, barcode);
+    const duplicateMatch = findDuplicate(name, partNumber, barcode, manufacturer);
+    const duplicate = duplicateMatch?.item || null;
 
     if (duplicate) {
         const warning = document.getElementById("duplicateWarning");
         warning.style.display = "block";
-
         warning.innerHTML =
             "<strong>Possible Duplicate Found</strong>" +
             "You already have <b>" +
@@ -1170,7 +1436,9 @@ async function saveItem() {
             "</b> stored at <b>" +
             escapeHTML(duplicate.location) +
             "</b>.<br><br>" +
-            "Check the existing item before adding another.";
+            "<b>Why it matched:</b> " +
+            escapeHTML(duplicateMatch.reason) +
+            ".<br><br>Check the existing item before adding another.";
 
         const continueSaving = confirm(
             "WARNING: You may already own this item.\n\n" +
@@ -1187,11 +1455,12 @@ async function saveItem() {
 
     setSyncStatus("Saving to cloud…");
 
-    const { error } = await db
+    const { data: insertedRows, error } = await db
         .from("inventory_items")
         .insert({
             user_id: currentUser.id,
             name,
+            section,
             category,
             manufacturer,
             part_number: partNumber,
@@ -1201,12 +1470,21 @@ async function saveItem() {
             condition,
             notes,
             photo_path: currentPhoto || null
-        });
+        })
+        .select("id");
 
     if (error) {
         setSyncStatus("Save failed: " + error.message, false);
         alert("Could not save item: " + error.message);
         return;
+    }
+
+    try {
+        const newItemId = insertedRows?.[0]?.id;
+        if (newItemId) await saveAdditionalPhotos(newItemId);
+    } catch (photoError) {
+        console.error("Additional photo save failed:", photoError);
+        alert("The item was saved, but the extra photos could not be saved: " + (photoError.message || "Unknown error"));
     }
 
     clearForm();
@@ -1283,34 +1561,59 @@ async function removeOne(id) {
 
 function clearForm() {
     stopBarcodeScanner();
-
-    document.getElementById("itemName").value = "";
-    document.getElementById("category").value = "";
-    document.getElementById("manufacturer").value = "";
-    document.getElementById("partNumber").value = "";
-    document.getElementById("barcode").value = "";
-    document.getElementById("quantity").value = 1;
-    document.getElementById("location").value = "";
-    document.getElementById("condition").value = "New";
-    document.getElementById("notes").value = "";
-    document.getElementById("photo").value = "";
-
-    clearLocationBuilder(false);
-
-    currentPhoto = "";
-    photoPreview.src = "";
-    photoPreview.style.display = "none";
-
-    document.getElementById("duplicateWarning").style.display = "none";
+    ["itemName","manufacturer","partNumber","barcode","location","notes"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("section").value="";
+    document.getElementById("category").value="";
+    document.getElementById("quantity").value=1;
+    document.getElementById("condition").value="New";
+    ["photo","cameraPhoto","backPhoto","cameraBackPhoto"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("photoFileName").textContent="No front photo selected";
+    document.getElementById("backPhotoFileName").textContent="No back photo selected";
+    currentPhoto="";currentBackPhoto="";currentExtraPhotos=[];extraPhotoCounter=0;
+    photoPreview.src="";photoPreview.style.display="none";backPhotoPreview.src="";backPhotoPreview.style.display="none";
+    document.getElementById("extraPhotos").innerHTML="";
+    document.getElementById("duplicateWarning").style.display="none";
 }
 
-function renderInventory() {
-    const inventoryDiv = document.getElementById("inventory");
-    const search = normalize(document.getElementById("search").value);
+let inventoryView = "cards";
 
-    const filtered = inventory.filter(item => {
+function refreshInventoryFilters() {
+    const definitions = [
+        ["filterSection", "section", "All Sections"],
+        ["filterCategory", "category", "All Categories"],
+        ["filterLocation", "location", "All Locations"]
+    ];
+
+    definitions.forEach(([id, field, label]) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+
+        const current = select.value;
+        const values = [...new Set(
+            inventory.map(item => String(item[field] || "").trim()).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        select.innerHTML =
+            `<option value="">${label}</option>` +
+            values.map(value =>
+                `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`
+            ).join("");
+
+        if (values.includes(current)) select.value = current;
+    });
+}
+
+function getFilteredInventory() {
+    const search = normalize(document.getElementById("search")?.value || "");
+    const section = document.getElementById("filterSection")?.value || "";
+    const category = document.getElementById("filterCategory")?.value || "";
+    const location = document.getElementById("filterLocation")?.value || "";
+    const sort = document.getElementById("sortInventory")?.value || "newest";
+
+    let filtered = inventory.filter(item => {
         const combined = normalize(
             item.name + " " +
+            item.section + " " +
             item.category + " " +
             item.manufacturer + " " +
             item.partNumber + " " +
@@ -1319,110 +1622,310 @@ function renderInventory() {
             item.notes
         );
 
-        const matchesSearch = combined.includes(search);
-
-        const matchesLocation =
-            !selectedLocationFilter ||
-            normalize(item.location) === normalize(selectedLocationFilter);
-
-        return matchesSearch && matchesLocation;
+        return combined.includes(search) &&
+            (!section || item.section === section) &&
+            (!category || item.category === category) &&
+            (!location || item.location === location);
     });
 
-    const activeFilter = document.getElementById("activeLocationFilter");
+    filtered = [...filtered].sort((a, b) => {
+        if (sort === "az") return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true });
+        if (sort === "za") return String(b.name || "").localeCompare(String(a.name || ""), undefined, { numeric: true });
+        if (sort === "location") return String(a.location || "").localeCompare(String(b.location || ""), undefined, { numeric: true });
+        if (sort === "oldest") return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
 
-    if (selectedLocationFilter) {
-        activeFilter.style.display = "block";
-        activeFilter.innerHTML =
-            "Showing items in <b>" +
-            escapeHTML(selectedLocationFilter) +
-            "</b>.";
+    return filtered;
+}
+
+function setInventoryView(view) {
+    inventoryView = view === "list" ? "list" : "cards";
+    renderInventory();
+}
+
+function renderInventory() {
+    const inventoryDiv = document.getElementById("inventory");
+    const tableWrap = document.getElementById("inventoryTableWrap");
+    const tableBody = document.getElementById("inventoryTableBody");
+
+    refreshInventoryFilters();
+    const filtered = getFilteredInventory();
+
+    if (inventoryView === "list") {
+        inventoryDiv.style.display = "none";
+        tableWrap.style.display = "block";
+
+        if (filtered.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9">No electronics found.</td></tr>';
+        } else {
+            tableBody.innerHTML = filtered.map(item => `
+                <tr>
+                    <td>${getItemPhotos(item)[0] ? `<img src="${getItemPhotos(item)[0]}" alt="">` : ""}</td>
+                    <td><b>${escapeHTML(item.name)}</b></td>
+                    <td>${escapeHTML(item.section)}</td>
+                    <td>${escapeHTML(item.category)}</td>
+                    <td>${Number(item.quantity || 0)}</td>
+                    <td>${escapeHTML(item.location)}</td>
+                    <td>${escapeHTML(item.manufacturer)}</td>
+                    <td>${escapeHTML(item.partNumber)}</td>
+                    <td>${escapeHTML(item.dateAdded)}</td>
+                </tr>
+            `).join("");
+        }
     } else {
-        activeFilter.style.display = "none";
-        activeFilter.innerHTML = "";
-    }
+        inventoryDiv.style.display = "";
+        tableWrap.style.display = "none";
 
-    if (filtered.length === 0) {
-        inventoryDiv.innerHTML =
-            '<div class="empty">No electronics found.</div>';
-    } else {
-        inventoryDiv.innerHTML = filtered.map(item => `
-            <div class="item-card">
+        if (filtered.length === 0) {
+            inventoryDiv.innerHTML =
+                '<div class="empty">No electronics found.</div>';
+        } else {
+            inventoryDiv.innerHTML = filtered.map(item => `
+                <div class="item-card">
 
-                ${
-                    item.photo
-                    ? `<img src="${item.photo}" alt="">`
-                    : ""
-                }
+                    ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="">`).join("")}</div>` : ""}
 
-                ${
-                    item.category
-                    ? `<span class="badge">${escapeHTML(item.category)}</span>`
-                    : ""
-                }
+                    ${item.section
+                        ? `<div class="item-info"><b>Section:</b> ${escapeHTML(item.section)}</div>`
+                        : ""}
 
-                <h3>${escapeHTML(item.name)}</h3>
+                    ${item.category
+                        ? `<span class="badge">${escapeHTML(item.category)}</span>`
+                        : ""}
 
-                <div class="item-info">
-                    <b>Quantity:</b> ${item.quantity}
-                    <br>
+                    <h3>${escapeHTML(item.name)}</h3>
 
-                    <b>Location:</b> ${escapeHTML(item.location)}
+                    <div class="item-info">
+                        <b>Quantity:</b> ${item.quantity}
+                        <br>
+                        <b>Location:</b> ${escapeHTML(item.location)}
 
-                    ${
-                        item.manufacturer
-                        ? `<br><b>Manufacturer:</b> ${escapeHTML(item.manufacturer)}`
-                        : ""
-                    }
+                        ${item.manufacturer
+                            ? `<br><b>Manufacturer:</b> ${escapeHTML(item.manufacturer)}`
+                            : ""}
 
-                    ${
-                        item.partNumber
-                        ? `<br><b>Part #:</b> ${escapeHTML(item.partNumber)}`
-                        : ""
-                    }
+                        ${item.partNumber
+                            ? `<br><b>Part #:</b> ${escapeHTML(item.partNumber)}`
+                            : ""}
 
-                    ${
-                        item.barcode
-                        ? `<br><b>Barcode:</b> ${escapeHTML(item.barcode)}`
-                        : ""
-                    }
+                        ${item.barcode
+                            ? `<br><b>Barcode:</b> ${escapeHTML(item.barcode)}`
+                            : ""}
 
-                    <br>
-                    <b>Condition:</b> ${escapeHTML(item.condition)}
+                        <br>
+                        <b>Condition:</b> ${escapeHTML(item.condition)}
 
-                    ${
-                        item.notes
-                        ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
-                        : ""
-                    }
+                        ${item.notes
+                            ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
+                            : ""}
 
-                    <br>
-                    <b>Added:</b> ${escapeHTML(item.dateAdded)}
+                        <br>
+                        <b>Added:</b> ${escapeHTML(item.dateAdded)}
+                    </div>
+
+                    <div class="buttons">
+                        <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
+                        <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
+                        <button class="danger" onclick='deleteItem(${JSON.stringify(item.id)})'>Delete</button>
+                    </div>
                 </div>
-
-                <div class="buttons">
-                    <button
-                        class="secondary"
-                        onclick='addOne(${JSON.stringify(item.id)})'>
-                        +1
-                    </button>
-
-                    <button
-                        class="secondary"
-                        onclick='removeOne(${JSON.stringify(item.id)})'>
-                        -1
-                    </button>
-
-                    <button
-                        class="danger"
-                        onclick='deleteItem(${JSON.stringify(item.id)})'>
-                        Delete
-                    </button>
-                </div>
-            </div>
-        `).join("");
+            `).join("");
+        }
     }
 
     updateStats();
+    renderBins();
+}
+
+
+/* ---------- STORAGE BINS / LOCATIONS ---------- */
+
+function binStorageKey() {
+    return currentUser ? "electronicsSavedBins_" + currentUser.id : "electronicsSavedBins";
+}
+
+function getSavedBins() {
+    try {
+        const bins = JSON.parse(localStorage.getItem(binStorageKey()) || "[]");
+        return Array.isArray(bins) ? bins : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveBins(bins) {
+    localStorage.setItem(binStorageKey(), JSON.stringify(bins));
+}
+
+function getAllStorageLocations() {
+    const used = inventory
+        .map(item => String(item.location || "").trim())
+        .filter(Boolean);
+
+    const saved = getSavedBins();
+
+    return [...new Set([...used, ...saved])]
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function addStorageLocation() {
+    const input = document.getElementById("newBinLocation");
+    const location = String(input?.value || "").trim();
+
+    if (!location) {
+        alert("Enter a cabinet, drawer, bin, shelf, or other storage location first.");
+        return;
+    }
+
+    const alreadyExists = getAllStorageLocations()
+        .some(value => normalize(value) === normalize(location));
+
+    if (alreadyExists) {
+        alert("That storage location already exists.");
+        return;
+    }
+
+    const bins = getSavedBins();
+    bins.push(location);
+    saveBins(bins);
+    input.value = "";
+    renderBins();
+}
+
+function deleteEmptyStorageLocation(location) {
+    const hasItems = inventory.some(
+        item => normalize(item.location) === normalize(location)
+    );
+
+    if (hasItems) {
+        alert("This location contains inventory. Move or delete those items before removing the location.");
+        return;
+    }
+
+    if (!confirm("Remove storage location:\\n\\n" + location + "?")) return;
+
+    const bins = getSavedBins().filter(
+        value => normalize(value) !== normalize(location)
+    );
+
+    saveBins(bins);
+    renderBins();
+}
+
+function useStorageLocation(location) {
+    document.getElementById("location").value = location;
+    document.getElementById("itemName").scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+    setSyncStatus("New item location selected: " + location);
+}
+
+function viewStorageLocation(location) {
+    const safeId = "binItems_" + location.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const area = document.getElementById(safeId);
+    if (!area) return;
+    area.style.display = area.style.display === "block" ? "none" : "block";
+}
+
+function renderBins() {
+    const grid = document.getElementById("binsGrid");
+    if (!grid) return;
+
+    const search = normalize(document.getElementById("binSearch")?.value || "");
+    const locations = getAllStorageLocations()
+        .filter(location => normalize(location).includes(search));
+
+    if (!locations.length) {
+        grid.innerHTML = '<div class="empty">No storage locations yet. Add your first cabinet, drawer, shelf, or bin above.</div>';
+        return;
+    }
+
+    grid.innerHTML = locations.map(location => {
+        const items = inventory.filter(
+            item => normalize(item.location) === normalize(location)
+        );
+
+        const totalPieces = items.reduce(
+            (sum, item) => sum + Number(item.quantity || 0), 0
+        );
+
+        const safeId = "binItems_" + location.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        const itemRows = items.length
+            ? items.map(item => `
+                <div class="bin-item-row">
+                    <span><b>${escapeHTML(item.name)}</b></span>
+                    <span>Qty ${Number(item.quantity || 0)}</span>
+                </div>
+            `).join("")
+            : '<div class="empty" style="padding:12px 0;">This location is empty.</div>';
+
+        return `
+            <div class="bin-card">
+                <h3>${escapeHTML(location)}</h3>
+                <div class="bin-count">
+                    ${items.length} different item${items.length === 1 ? "" : "s"} •
+                    ${totalPieces} total piece${totalPieces === 1 ? "" : "s"}
+                </div>
+
+                <div class="buttons">
+                    <button type="button" class="secondary"
+                        onclick='viewStorageLocation(${JSON.stringify(location)})'>
+                        View Items
+                    </button>
+
+                    <button type="button" class="primary"
+                        onclick='useStorageLocation(${JSON.stringify(location)})'>
+                        Use for New Item
+                    </button>
+
+                    ${items.length === 0 ? `
+                        <button type="button" class="danger"
+                            onclick='deleteEmptyStorageLocation(${JSON.stringify(location)})'>
+                            Remove
+                        </button>
+                    ` : ""}
+                </div>
+
+                <div class="bin-items" id="${safeId}">
+                    ${itemRows}
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+
+function printMeasurementGrid() {
+    const target = document.getElementById("measurementGridPrint");
+
+    target.innerHTML = `
+        <div style="font-family:Arial,sans-serif;text-align:center;">
+            <h2 style="margin:0 0 4px;">Electronics Inventory Measurement Grid</h2>
+            <div style="font-size:12px;margin-bottom:8px;">1-inch major grid • 1/4-inch subdivisions • Print at 100% / Actual Size</div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="7.5in" height="9in" viewBox="0 0 750 900" style="border:2px solid #000;max-width:none;">
+                <defs>
+                    <pattern id="quarterGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+                        <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#aaa" stroke-width="0.7"/>
+                    </pattern>
+                    <pattern id="inchGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <rect width="100" height="100" fill="url(#quarterGrid)"/>
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#000" stroke-width="1.5"/>
+                    </pattern>
+                </defs>
+                <rect width="750" height="900" fill="url(#inchGrid)"/>
+                <rect x="0" y="0" width="100" height="100" fill="none" stroke="#000" stroke-width="3"/>
+                <text x="50" y="55" text-anchor="middle" font-family="Arial" font-size="16">1 inch</text>
+                <text x="375" y="885" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: the outlined reference square above must measure exactly 1 × 1 inch.</text>
+            </svg>
+        </div>
+    `;
+
+    document.body.classList.add("printing-grid");
+    window.print();
+    setTimeout(() => document.body.classList.remove("printing-grid"), 500);
 }
 
 function updateStats() {
@@ -1490,10 +1993,7 @@ async function migrateLocalInventoryOnce() {
         .select("name,part_number,barcode,storage_location");
 
     if (cloudError) {
-        setSyncStatus(
-            "Could not check cloud inventory: " + cloudError.message,
-            false
-        );
+        setSyncStatus("Could not check cloud inventory: " + cloudError.message, false);
         return;
     }
 
@@ -1516,15 +2016,11 @@ async function migrateLocalInventoryOnce() {
     };
 
     const rowsToInsert = localItems
-        .filter(item =>
-            item &&
-            item.name &&
-            item.location &&
-            !existsInCloud(item)
-        )
+        .filter(item => item && item.name && item.location && !existsInCloud(item))
         .map(item => ({
             user_id: currentUser.id,
             name: item.name,
+            section: item.section || mapInventorySection(item),
             category: item.category || "",
             manufacturer: item.manufacturer || "",
             part_number: item.partNumber || "",
@@ -1542,10 +2038,7 @@ async function migrateLocalInventoryOnce() {
             .insert(rowsToInsert);
 
         if (error) {
-            setSyncStatus(
-                "Local inventory migration failed: " + error.message,
-                false
-            );
+            setSyncStatus("Local inventory migration failed: " + error.message, false);
             return;
         }
     }
@@ -1572,6 +2065,11 @@ function startRealtime() {
                 loadInventory();
             }
         )
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "inventory_item_photos", filter: "user_id=eq." + currentUser.id },
+            () => { loadInventory(); }
+        )
         .subscribe();
 }
 
@@ -1579,10 +2077,8 @@ async function enterApp(user) {
     currentUser = user;
     showApp();
     setSyncStatus("Connected to cloud");
-
     await migrateLocalInventoryOnce();
     await loadInventory();
-
     startRealtime();
 }
 
@@ -1592,11 +2088,7 @@ db.auth.onAuthStateChange(async (event, session) => {
     } else {
         currentUser = null;
         inventory = [];
-        selectedLocationFilter = "";
-
-        renderLocations();
         renderInventory();
-        refreshLocationTools();
 
         if (realtimeChannel) {
             db.removeChannel(realtimeChannel);
@@ -1614,9 +2106,7 @@ db.auth.onAuthStateChange(async (event, session) => {
         await enterApp(data.session.user);
     } else {
         showAuth();
-        renderLocations();
         renderInventory();
-        refreshLocationTools();
     }
 })();
 </script>
