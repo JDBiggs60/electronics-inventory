@@ -337,6 +337,12 @@ button {
             object-fit: cover;
             border-radius: 6px;
         }
+        .inventory-table tbody tr.inventory-row-link { cursor: pointer; }
+        .inventory-table tbody tr.inventory-row-link:hover { background: #f1f5f9; }
+        .item-card.inventory-jump-highlight {
+            outline: 3px solid #2563eb;
+            outline-offset: 3px;
+        }
         .measurement-panel {
             margin-top: 18px;
         }
@@ -1588,6 +1594,19 @@ function setInventoryView(view) {
     renderInventory();
 }
 
+function openInventoryItem(id) {
+    inventoryView = "cards";
+    renderInventory();
+
+    requestAnimationFrame(() => {
+        const card = document.getElementById("inventory-card-" + String(id));
+        if (!card) return;
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("inventory-jump-highlight");
+        setTimeout(() => card.classList.remove("inventory-jump-highlight"), 1800);
+    });
+}
+
 function renderInventory() {
     const inventoryDiv = document.getElementById("inventory");
     const tableWrap = document.getElementById("inventoryTableWrap");
@@ -1604,7 +1623,7 @@ function renderInventory() {
             tableBody.innerHTML = '<tr><td colspan="9">No electronics found.</td></tr>';
         } else {
             tableBody.innerHTML = filtered.map(item => `
-                <tr>
+                <tr class="inventory-row-link" onclick='openInventoryItem(${JSON.stringify(item.id)})' title="Open full inventory card">
                     <td>${getItemPhotos(item)[0] ? `<img src="${getItemPhotos(item)[0]}" alt="">` : ""}</td>
                     <td><b>${escapeHTML(item.name)}</b></td>
                     <td>${escapeHTML(item.section)}</td>
@@ -1626,7 +1645,7 @@ function renderInventory() {
                 '<div class="empty">No electronics found.</div>';
         } else {
             inventoryDiv.innerHTML = filtered.map(item => `
-                <div class="item-card">
+                <div class="item-card" id="inventory-card-${escapeHTML(String(item.id))}">
 
                     ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="">`).join("")}</div>` : ""}
 
