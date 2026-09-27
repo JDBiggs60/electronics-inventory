@@ -353,7 +353,6 @@ button {
             .inventory-tools { grid-template-columns: 1fr; }
         }
         @media print {
-            body.printing-grid { margin: 0 !important; padding: 0 !important; }
             body.printing-grid > * { display: none !important; }
             body.printing-grid #appRoot { display: block !important; }
             body.printing-grid #appRoot > * { display: none !important; }
@@ -361,25 +360,20 @@ button {
             body.printing-grid #appRoot > .container > * { display: none !important; }
             body.printing-grid #measurementGridPrint {
                 display: block !important;
-                position: fixed !important;
-                left: 50% !important;
-                top: 0 !important;
-                transform: translateX(-50%) !important;
+                position: static !important;
                 width: 7.25in !important;
-                height: 9.6in !important;
-                margin: 0 !important;
+                height: 9.25in !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
                 overflow: hidden !important;
                 page: measurementGridPage;
             }
             body.printing-grid #measurementGridPrint > div {
                 width: 100% !important;
-                height: 9.6in !important;
+                height: 9.25in !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
             }
         }
         @page { size: Letter portrait; margin: 0.5in; }
@@ -742,10 +736,10 @@ button {
         </div>
     </div>
 
-</div>
-</div>
+    <div id="measurementGridPrint"></div>
 
-<div id="measurementGridPrint"></div>
+</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1881,10 +1875,10 @@ function printMeasurementGrid() {
     const target = document.getElementById("measurementGridPrint");
 
     target.innerHTML = `
-        <div style="font-family:Arial,sans-serif;text-align:center;width:7.25in;height:9.6in;overflow:hidden;">
+        <div style="font-family:Arial,sans-serif;text-align:center;width:7.25in;height:9.25in;overflow:hidden;">
             <div style="font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.15;">Electronics Inventory Measurement Grid</div>
             <div style="font-size:10px;margin:0 0 6px;line-height:1.15;">1-inch major grid • 1/4-inch subdivisions • Print at 100% / Actual Size</div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="7.25in" height="9.1in" viewBox="0 0 725 910" style="display:block;max-width:none;margin:0 auto;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="7.25in" height="8.75in" viewBox="0 0 725 875" style="display:block;max-width:none;margin:0 auto;">
                 <defs>
                     <pattern id="quarterGrid" width="25" height="25" patternUnits="userSpaceOnUse">
                         <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#aaa" stroke-width="0.7"/>
@@ -1894,10 +1888,10 @@ function printMeasurementGrid() {
                         <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#000" stroke-width="1.5"/>
                     </pattern>
                 </defs>
-                <rect x="1" y="1" width="723" height="883" fill="url(#inchGrid)" stroke="#000" stroke-width="2"/>
+                <rect x="1" y="1" width="723" height="848" fill="url(#inchGrid)" stroke="#000" stroke-width="2"/>
                 <rect x="1" y="1" width="100" height="100" fill="white" fill-opacity=".85" stroke="#000" stroke-width="3"/>
                 <text x="51" y="57" text-anchor="middle" font-family="Arial" font-size="16">1 inch</text>
-                <text x="362.5" y="904" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: outlined square must measure exactly 1 × 1 inch.</text>
+                <text x="362.5" y="869" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: outlined square must measure exactly 1 × 1 inch.</text>
             </svg>
         </div>
     `;
@@ -1910,23 +1904,23 @@ function printMetricMeasurementGrid() {
     let lines = "";
     for (let x = 0; x <= 190; x++) {
         const major = x % 10 === 0, half = !major && x % 5 === 0;
-        lines += `<line x1="${x}" y1="0" x2="${x}" y2="235" stroke="${major ? "#000" : half ? "#777" : "#ccc"}" stroke-width="${major ? .35 : half ? .22 : .12}"/>`;
+        lines += `<line x1="${x}" y1="0" x2="${x}" y2="222" stroke="${major ? "#000" : half ? "#777" : "#ccc"}" stroke-width="${major ? .35 : half ? .22 : .12}"/>`;
     }
-    for (let y = 0; y <= 235; y++) {
+    for (let y = 0; y <= 222; y++) {
         const major = y % 10 === 0, half = !major && y % 5 === 0;
         lines += `<line x1="0" y1="${y}" x2="190" y2="${y}" stroke="${major ? "#000" : half ? "#777" : "#ccc"}" stroke-width="${major ? .35 : half ? .22 : .12}"/>`;
     }
 
     target.innerHTML = `
-        <div style="font-family:Arial,sans-serif;text-align:center;width:190.5mm;height:247.5mm;overflow:hidden;">
+        <div style="font-family:Arial,sans-serif;text-align:center;width:190.5mm;height:235mm;overflow:hidden;">
             <div style="font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.15;">Electronics Inventory Metric Measurement Grid</div>
             <div style="font-size:10px;margin:0 0 5px;line-height:1.15;">1 cm major grid • 1 mm subdivisions • 5 mm mid-lines • Print at 100% / Actual Size</div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="190mm" height="237mm" viewBox="0 0 190 237" style="display:block;max-width:none;margin:0 auto;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="190mm" height="224mm" viewBox="0 0 190 224" style="display:block;max-width:none;margin:0 auto;">
                 <g transform="translate(0 0)">${lines}</g>
-                <rect x="0.35" y="0.35" width="189.3" height="234.3" fill="none" stroke="#000" stroke-width=".5"/>
+                <rect x="0.35" y="0.35" width="189.3" height="221.3" fill="none" stroke="#000" stroke-width=".5"/>
                 <rect x="0" y="0" width="10" height="10" fill="white" fill-opacity=".88" stroke="#000" stroke-width=".7"/>
                 <text x="5" y="5.8" text-anchor="middle" font-family="Arial" font-size="3.2">1 cm</text>
-                <text x="95" y="236.2" text-anchor="middle" font-family="Arial" font-size="3">VERIFY: outlined square must measure exactly 1 × 1 cm.</text>
+                <text x="95" y="223.2" text-anchor="middle" font-family="Arial" font-size="3">VERIFY: outlined square must measure exactly 1 × 1 cm.</text>
             </svg>
         </div>
     `;
