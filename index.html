@@ -479,6 +479,27 @@ button {
         </div>
     </div>
 
+
+    <div class="panel" id="pilePanel">
+        <h2>Identify a Pile of Parts</h2>
+        <p>Spread parts apart so each is visible. Photograph the pile, check the suggested items, then choose what to save.</p>
+        <div class="buttons">
+            <button type="button" onclick="document.getElementById('pileCamera').click()">Take Pile Photo</button>
+            <button type="button" class="secondary" onclick="document.getElementById('pileFile').click()">Choose Pile Photo</button>
+        </div>
+        <input id="pileCamera" type="file" accept="image/*" capture="environment" class="hidden-photo-input">
+        <input id="pileFile" type="file" accept="image/*" class="hidden-photo-input">
+        <img id="pilePreview" style="display:none;max-width:100%;max-height:350px;margin:12px 0;border-radius:8px" alt="Pile of parts">
+        <div id="pileStatus" role="status"></div>
+        <div id="pileResults"></div>
+        <div id="pileSaveTools" style="display:none;margin-top:15px">
+            <label for="pileLocation">Storage location for selected items *</label>
+            <input id="pileLocation" placeholder="Example: Cabinet A, Drawer 7">
+            <p>Each row is editable. Uncheck uncertain items. Possible duplicates are skipped until you review them individually.</p>
+            <button type="button" id="pileSaveButton" onclick="savePileItems()">Add Checked Items to Inventory</button>
+        </div>
+    </div>
+
     <div class="panel">
 
         <h2>Add Electronic Item</h2>
@@ -836,6 +857,88 @@ function addExtraPhotoSlot(){
  });
 }
 function removeExtraPhotoSlot(id){currentExtraPhotos=currentExtraPhotos.filter(p=>p.id!==id);document.getElementById("extraPhotoCard"+id)?.remove()}
+
+
+// Pile results are proposals. Nothing is saved until the user checks and confirms rows.
+let pilePhoto = "";
+let pileEntries = [];
+for (const id of ["pileCamera", "pileFile"]) {
+ document.getElementById(id).addEventListener("change", async event => {
+  const file = event.target.files?.[0]; if (!file) return;
+  const status = document.getElementById("pileStatus");
+  pileEntries = []; document.getElementById("pileResults").replaceChildren();
+  document.getElementById("pileSaveTools").style.display = "none";
+  status.textContent = "Reading photo…";
+  try {
+   // Larger than single-item photos so markings remain legible.
+   pilePhoto = await compressPhotoFile(file, 1600, .82);
+   const preview = document.getElementById("pilePreview"); preview.src = pilePhoto; preview.style.display = "block";
+   status.textContent = "Finding the separate parts…";
+   const {data, error} = await db.functions.invoke("identify-pile", {body:{image:pilePhoto}});
+   if (error) throw error;
+   if (!Array.isArray(data?.items)) throw new Error(data?.error || "The pile response had no item list.");
+   pileEntries = data.items.slice(0, 30).map(item => ({
+    name:String(item.name||"").slice(0,120), quantity:Math.max(1,Math.min(999,Number.parseInt(item.quantity,10)||1)),
+    manufacturer:String(item.manufacturer||"").slice(0,100), partNumber:String(item.part_number||"").slice(0,100),
+    category:String(item.category||"").slice(0,100), notes:String(item.notes||"").slice(0,300),
+    confidence:String(item.confidence||"uncertain"), selected:item.confidence === "high"
+   })).filter(item=>item.name);
+   renderPileEntries();
+   status.textContent = pileEntries.length ? `Found ${pileEntries.length} proposed item types. Check each before saving.` : "No separate parts could be identified. Try a clearer photo with parts spaced apart.";
+  } catch (err) { console.error(err); status.textContent = "Pile identification failed: " + (err.message||"Unknown error") + ". Confirm that identify-pile is deployed."; }
+  event.target.value = "";
+ });
+}
+function renderPileEntries() {
+ const box=document.getElementById("pileResults");box.replaceChildren();
+ pileEntries.forEach((entry,index)=>{
+  const row=document.createElement("div");row.style.cssText="padding:12px;margin:10px 0;border:1px solid #ccd3dc;border-radius:8px";
+  const title=document.createElement("label");const check=document.createElement("input");check.type="checkbox";check.checked=entry.selected;
+  check.addEventListener("change",()=>{entry.selected=check.checked}); title.append(check,document.createTextNode(` Include item ${index+1} (${entry.confidence} confidence)`));row.append(title);
+  for (const [field,label,type] of [["name","Item name","text"],["quantity","Quantity","number"],["manufacturer","Manufacturer","text"],["partNumber","Part number","text"],["category","Category","text"],["notes","Visible details / notes","text"]]) {
+   const labelEl=document.createElement("label");labelEl.textContent=label;
+   const input=document.createElement("input");input.type=type;input.value=entry[field];if(type==="number") {input.min="1";input.max="999"}
+   input.addEventListener("input",()=>{entry[field]=type==="number"?input.value:input.value.trim()});
+   row.append(labelEl,input);
+  }
+  box.append(row);
+ });
+ document.getElementById("pileSaveTools").style.display=pileEntries.length?"block":"none";
+}
+async function savePileItems() {
+ if (!currentUser) {alert("Sign in first.");return}
+ const location=document.getElementById("pileLocation").value.trim();
+ if (!location) {alert("Enter the storage location first.");return}
+ const selected=pileEntries.filter(item=>item.selected);
+ if (!selected.length) {alert("Check at least one item to save.");return}
+ for (const item of selected) if (!String(item.name||"").trim() || !Number.isInteger(Number(item.quantity)) || Number(item.quantity)<1 || Number(item.quantity)>999) {
+  alert("Every checked item needs a name and a whole-number quantity from 1 to 999.");return;
+ }
+ // Skip duplicates, including another row in this same batch. A later pass can update counts deliberately.
+ const seen=new Set(), candidates=[], skipped=[];
+ for (const item of selected) {
+  const key=normalize(item.partNumber)||normalize(item.name)+"|"+normalize(item.manufacturer);
+  const match=findDuplicate(item.name,item.partNumber,"",item.manufacturer);
+  if (match?.score>=75 || seen.has(key)) skipped.push(item.name); else {seen.add(key);candidates.push(item)}
+ }
+ if (!candidates.length) {alert("All selected items resemble existing inventory or repeat another row. Review them individually; nothing was added.");return}
+ if (!confirm(`Add ${candidates.length} item types to ${location}?${skipped.length?`\n\nSkipping ${skipped.length} possible duplicates: ${skipped.join(", ")}`:""}`)) return;
+ const button=document.getElementById("pileSaveButton");button.disabled=true;
+ let saved=0;let failure="";
+ try {
+  for (const item of candidates) {
+   const category=mapAICategory({category:item.category,name:item.name,partNumber:item.partNumber,notes:item.notes}) || "Other";
+   const row={user_id:currentUser.id,name:item.name.trim(),section:mapInventorySection({category,name:item.name,partNumber:item.partNumber,notes:item.notes})||"Other",category,
+    manufacturer:item.manufacturer,part_number:item.partNumber,barcode:"",quantity:Number(item.quantity),storage_location:location,condition:"New",
+    notes:["Identified from a pile photo; verify details.",item.notes].filter(Boolean).join("\n"),photo_path:pilePhoto};
+   const {error}=await db.from("inventory_items").insert(row);
+   if(error){failure=error.message;break}
+   saved++;item.selected=false;
+  }
+  await loadInventory();renderPileEntries();
+  document.getElementById("pileStatus").textContent=`Saved ${saved} item types. Skipped ${skipped.length} possible duplicates.${failure?" Save stopped: "+failure:""}`;
+ } finally {button.disabled=false}
+}
 
 async function identifyElectronics(imageData) {
     if (!imageData) return;
