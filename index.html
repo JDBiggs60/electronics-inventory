@@ -361,10 +361,19 @@ button {
                 position: absolute;
                 left: 0;
                 top: 0;
+                width: 7.8in;
+                height: 10.3in;
+                overflow: hidden;
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+            body.printing-grid #measurementGridPrint > div {
                 width: 100%;
+                height: 100%;
+                overflow: hidden;
             }
         }
-        @page { margin: 0.35in; }
+        @page { size: letter portrait; margin: 0.35in; }
 
 
 /* Multiple-photo upgrade */
