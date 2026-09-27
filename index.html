@@ -353,6 +353,7 @@ button {
             .inventory-tools { grid-template-columns: 1fr; }
         }
         @media print {
+            body.printing-grid { margin: 0 !important; padding: 0 !important; }
             body.printing-grid > * { display: none !important; }
             body.printing-grid #appRoot { display: block !important; }
             body.printing-grid #appRoot > * { display: none !important; }
@@ -360,10 +361,13 @@ button {
             body.printing-grid #appRoot > .container > * { display: none !important; }
             body.printing-grid #measurementGridPrint {
                 display: block !important;
-                position: static !important;
+                position: fixed !important;
+                left: 50% !important;
+                top: 0 !important;
+                transform: translateX(-50%) !important;
                 width: 7.25in !important;
                 height: 9.6in !important;
-                margin: 0 auto !important;
+                margin: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
                 page: measurementGridPage;
@@ -374,6 +378,8 @@ button {
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
             }
         }
         @page { size: Letter portrait; margin: 0.5in; }
@@ -736,10 +742,10 @@ button {
         </div>
     </div>
 
-    <div id="measurementGridPrint"></div>
+</div>
+</div>
 
-</div>
-</div>
+<div id="measurementGridPrint"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
