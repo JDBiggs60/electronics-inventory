@@ -353,27 +353,30 @@ button {
             .inventory-tools { grid-template-columns: 1fr; }
         }
         @media print {
+            body.printing-grid { margin: 0 !important; background: white !important; }
             body.printing-grid * { visibility: hidden !important; }
             body.printing-grid #measurementGridPrint,
             body.printing-grid #measurementGridPrint * { visibility: visible !important; }
             body.printing-grid #measurementGridPrint {
                 display: block !important;
-                position: absolute;
+                position: fixed;
                 left: 0;
                 top: 0;
-                width: 7.8in;
-                height: 10.3in;
+                width: 7.5in;
+                height: 10in;
+                margin: 0;
+                padding: 0;
                 overflow: hidden;
-                break-after: avoid;
-                page-break-after: avoid;
             }
             body.printing-grid #measurementGridPrint > div {
                 width: 100%;
                 height: 100%;
+                margin: 0;
+                padding: 0;
                 overflow: hidden;
             }
         }
-        @page { size: letter portrait; margin: 0.35in; }
+        @page { size: letter portrait; margin: 0.5in; }
 
 
 /* Multiple-photo upgrade */
@@ -1871,10 +1874,10 @@ function printMeasurementGrid() {
     const target = document.getElementById("measurementGridPrint");
 
     target.innerHTML = `
-        <div style="font-family:Arial,sans-serif;text-align:center;">
-            <h2 style="margin:0 0 4px;">Electronics Inventory Measurement Grid</h2>
-            <div style="font-size:12px;margin-bottom:8px;">1-inch major grid • 1/4-inch subdivisions • Print at 100% / Actual Size</div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="7.5in" height="9in" viewBox="0 0 750 900" style="border:2px solid #000;max-width:none;">
+        <div style="font-family:Arial,sans-serif;text-align:center;width:7.5in;height:10in;overflow:hidden;">
+            <div style="font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.15;">Electronics Inventory Measurement Grid</div>
+            <div style="font-size:10px;margin:0 0 6px;line-height:1.15;">1-inch major grid • 1/4-inch subdivisions • Print at 100% / Actual Size</div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="7.5in" height="9.55in" viewBox="0 0 750 955" style="display:block;max-width:none;margin:0 auto;">
                 <defs>
                     <pattern id="quarterGrid" width="25" height="25" patternUnits="userSpaceOnUse">
                         <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#aaa" stroke-width="0.7"/>
@@ -1884,25 +1887,58 @@ function printMeasurementGrid() {
                         <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#000" stroke-width="1.5"/>
                     </pattern>
                 </defs>
-                <rect width="750" height="900" fill="url(#inchGrid)"/>
-                <rect x="0" y="0" width="100" height="100" fill="none" stroke="#000" stroke-width="3"/>
-                <text x="50" y="55" text-anchor="middle" font-family="Arial" font-size="16">1 inch</text>
-                <text x="375" y="885" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: the outlined reference square above must measure exactly 1 × 1 inch.</text>
+                <rect x="1" y="1" width="748" height="928" fill="url(#inchGrid)" stroke="#000" stroke-width="2"/>
+                <rect x="1" y="1" width="100" height="100" fill="white" fill-opacity=".85" stroke="#000" stroke-width="3"/>
+                <text x="51" y="57" text-anchor="middle" font-family="Arial" font-size="16">1 inch</text>
+                <text x="375" y="949" text-anchor="middle" font-family="Arial" font-size="12">VERIFY: outlined square must measure exactly 1 × 1 inch.</text>
             </svg>
         </div>
     `;
 
-    document.body.classList.add("printing-grid");
-    window.print();
-    setTimeout(() => document.body.classList.remove("printing-grid"), 500);
+    printPreparedMeasurementGrid();
 }
 
 function printMetricMeasurementGrid() {
- const target=document.getElementById("measurementGridPrint"); let lines="";
- for(let x=0;x<=180;x++){const a=x%10===0,h=!a&&x%5===0;lines+=`<line x1="${x}" y1="0" x2="${x}" y2="240" stroke="${a?"#000":h?"#777":"#ccc"}" stroke-width="${a?.35:h?.22:.12}"/>`}
- for(let y=0;y<=240;y++){const a=y%10===0,h=!a&&y%5===0;lines+=`<line x1="0" y1="${y}" x2="180" y2="${y}" stroke="${a?"#000":h?"#777":"#ccc"}" stroke-width="${a?.35:h?.22:.12}"/>`}
- target.innerHTML=`<div style="font-family:Arial,sans-serif;text-align:center"><h2 style="margin:0 0 4px">Electronics Inventory Metric Measurement Grid</h2><div style="font-size:12px;margin-bottom:8px">1 cm major grid • 1 mm subdivisions • 5 mm mid-lines • Print at 100% / Actual Size</div><svg xmlns="http://www.w3.org/2000/svg" width="180mm" height="240mm" viewBox="0 0 180 240" style="border:.5mm solid #000;max-width:none">${lines}<rect x="0" y="0" width="10" height="10" fill="white" fill-opacity=".85" stroke="#000" stroke-width=".7"/><text x="5" y="5.8" text-anchor="middle" font-family="Arial" font-size="3.2">1 cm</text><text x="90" y="238" text-anchor="middle" font-family="Arial" font-size="3">VERIFY: outlined square must measure exactly 1 × 1 cm.</text></svg></div>`;
- document.body.classList.add("printing-grid"); const cleanup=()=>{document.body.classList.remove("printing-grid");window.removeEventListener("afterprint",cleanup)};window.addEventListener("afterprint",cleanup);window.print();setTimeout(cleanup,1000);
+    const target = document.getElementById("measurementGridPrint");
+    let lines = "";
+    for (let x = 0; x <= 190; x++) {
+        const major = x % 10 === 0, half = !major && x % 5 === 0;
+        lines += `<line x1="${x}" y1="0" x2="${x}" y2="242" stroke="${major ? "#000" : half ? "#777" : "#ccc"}" stroke-width="${major ? .35 : half ? .22 : .12}"/>`;
+    }
+    for (let y = 0; y <= 242; y++) {
+        const major = y % 10 === 0, half = !major && y % 5 === 0;
+        lines += `<line x1="0" y1="${y}" x2="190" y2="${y}" stroke="${major ? "#000" : half ? "#777" : "#ccc"}" stroke-width="${major ? .35 : half ? .22 : .12}"/>`;
+    }
+
+    target.innerHTML = `
+        <div style="font-family:Arial,sans-serif;text-align:center;width:190.5mm;height:254mm;overflow:hidden;">
+            <div style="font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.15;">Electronics Inventory Metric Measurement Grid</div>
+            <div style="font-size:10px;margin:0 0 5px;line-height:1.15;">1 cm major grid • 1 mm subdivisions • 5 mm mid-lines • Print at 100% / Actual Size</div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="190mm" height="244mm" viewBox="0 0 190 244" style="display:block;max-width:none;margin:0 auto;">
+                <g transform="translate(0 0)">${lines}</g>
+                <rect x="0.35" y="0.35" width="189.3" height="241.3" fill="none" stroke="#000" stroke-width=".5"/>
+                <rect x="0" y="0" width="10" height="10" fill="white" fill-opacity=".88" stroke="#000" stroke-width=".7"/>
+                <text x="5" y="5.8" text-anchor="middle" font-family="Arial" font-size="3.2">1 cm</text>
+                <text x="95" y="243.2" text-anchor="middle" font-family="Arial" font-size="3">VERIFY: outlined square must measure exactly 1 × 1 cm.</text>
+            </svg>
+        </div>
+    `;
+
+    printPreparedMeasurementGrid();
+}
+
+function printPreparedMeasurementGrid() {
+    document.body.classList.add("printing-grid");
+    let cleaned = false;
+    const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
+        document.body.classList.remove("printing-grid");
+        window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    setTimeout(cleanup, 1500);
 }
 
 function updateStats() {
