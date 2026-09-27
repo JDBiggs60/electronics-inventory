@@ -389,6 +389,20 @@ button {
 .location-card small{display:block;margin-top:5px;color:#64748b}
 @media(max-width:700px){.location-builder,.location-list{grid-template-columns:1fr}}
 
+
+/* Printable inventory report */
+#printInventoryReport{display:none}
+@media print{
+ body.printing-inventory *{visibility:hidden!important}
+ body.printing-inventory #printInventoryReport,body.printing-inventory #printInventoryReport *{visibility:visible!important}
+ body.printing-inventory #printInventoryReport{display:block!important;position:absolute;left:0;top:0;width:100%;background:white;color:black;font-family:Arial,Helvetica,sans-serif}
+ body.printing-inventory #printInventoryReport table{width:100%;border-collapse:collapse;font-size:10pt}
+ body.printing-inventory #printInventoryReport th,body.printing-inventory #printInventoryReport td{border:1px solid #999;padding:5px;text-align:left;vertical-align:top}
+ body.printing-inventory #printInventoryReport th{background:#eee!important;font-weight:bold}
+ body.printing-inventory #printInventoryReport tr{break-inside:avoid}
+ @page{size:landscape;margin:.4in}
+}
+
 </style>
 </head>
 
@@ -661,9 +675,12 @@ button {
 
             <button type="button" class="primary" onclick="setInventoryView('cards')">Card View</button>
             <button type="button" class="secondary" onclick="setInventoryView('list')">Inventory List</button>
+            <button type="button" class="secondary" onclick="printInventory()">Print Inventory</button>
         </div>
 
         <div id="inventory" class="inventory-grid"></div>
+
+        <div id="printInventoryReport"></div>
 
         <div id="inventoryTableWrap" class="inventory-table-wrap">
             <table class="inventory-table">
@@ -1787,6 +1804,37 @@ function renderInventory() {
     }
 
     updateStats();
+}
+
+
+function printInventory(){
+ const filtered=getFilteredInventory();
+ if(!filtered.length){alert("There are no inventory items to print with the current filters.");return}
+ const report=document.getElementById("printInventoryReport");
+ const pieces=filtered.reduce((sum,item)=>sum+Number(item.quantity||0),0);
+ const filters=[];
+ const search=document.getElementById("search")?.value.trim()||"";
+ const section=document.getElementById("filterSection")?.value||"";
+ const category=document.getElementById("filterCategory")?.value||"";
+ const location=document.getElementById("filterLocation")?.value||"";
+ if(search)filters.push("Search: "+search);
+ if(section)filters.push("Section: "+section);
+ if(category)filters.push("Category: "+category);
+ if(location)filters.push("Location: "+location);
+ report.innerHTML=`
+ <div>
+  <h1 style="margin:0 0 4px;font-size:20pt">Electronics Inventory</h1>
+  <div style="margin-bottom:4px;font-size:10pt">${filtered.length} different item${filtered.length===1?"":"s"} • ${pieces} total piece${pieces===1?"":"s"}</div>
+  <div style="margin-bottom:4px;font-size:9pt"><b>Printed selection:</b> ${filters.length?filters.map(escapeHTML).join(" • "):"All inventory"}</div>
+  <div style="margin-bottom:10px;font-size:9pt">Printed ${escapeHTML(new Date().toLocaleString())}</div>
+  <table><thead><tr><th>Item</th><th>Section</th><th>Category</th><th>Qty</th><th>Location</th><th>Manufacturer</th><th>Part #</th><th>Added</th></tr></thead>
+  <tbody>${filtered.map(item=>`<tr><td>${escapeHTML(item.name)}</td><td>${escapeHTML(item.section)}</td><td>${escapeHTML(item.category)}</td><td>${Number(item.quantity||0)}</td><td>${escapeHTML(item.location)}</td><td>${escapeHTML(item.manufacturer)}</td><td>${escapeHTML(item.partNumber)}</td><td>${escapeHTML(item.dateAdded)}</td></tr>`).join("")}</tbody></table>
+ </div>`;
+ document.body.classList.add("printing-inventory");
+ const cleanup=()=>{document.body.classList.remove("printing-inventory");window.removeEventListener("afterprint",cleanup)};
+ window.addEventListener("afterprint",cleanup);
+ window.print();
+ setTimeout(cleanup,1000);
 }
 
 function printMeasurementGrid() {
