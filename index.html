@@ -419,6 +419,22 @@ button {
  @page inventoryReport{size:Letter landscape;margin:.4in}
 }
 
+
+/* Single inventory item label preview and browser printing. */
+#singleLabelDialog[hidden],#labelPrintSheet[hidden]{display:none!important}
+#singleLabelDialog{position:fixed;inset:0;z-index:10000;background:#111827b8;display:flex;align-items:center;justify-content:center;padding:16px}
+.single-label-panel{width:min(100%,470px);max-height:90vh;overflow:auto;background:white;border-radius:14px;padding:20px;box-shadow:0 20px 50px #0004}
+.single-label-panel h2{margin:0 0 12px}
+.single-label-preview{border:1px solid #94a3b8;background:white;color:#111827;border-radius:5px;padding:14px;max-width:370px;margin:12px 0;overflow-wrap:anywhere}
+.single-label-name{font-weight:800;font-size:18px;line-height:1.2}
+.single-label-location{font-size:14px;margin-top:7px}
+.single-label-details{font-size:11px;margin-top:5px}
+#labelPrintSheet{display:none}
+@media print{
+ body.printing-single-label > *{display:none!important}
+ body.printing-single-label #labelPrintSheet{display:block!important;position:static;margin:0;padding:0;background:white;color:black}
+ body.printing-single-label #labelPrintSheet .single-label-preview{margin:0;max-width:3.5in;box-sizing:border-box;border:1px solid #777;border-radius:0;break-inside:avoid}
+}
 </style>
 </head>
 
@@ -447,6 +463,19 @@ button {
         <div id="authMessage" class="auth-message"></div>
     </div>
 </div>
+
+<div id="singleLabelDialog" hidden role="dialog" aria-modal="true" aria-labelledby="singleLabelHeading" onclick="if(event.target===this)closeSingleLabel()">
+  <div class="single-label-panel">
+    <h2 id="singleLabelHeading">Label preview</h2>
+    <div id="singleLabelPreview" class="single-label-preview"></div>
+    <p class="lookup-hint">Choose your label maker and label size in the print window. We can set an exact layout once your printer arrives.</p>
+    <div class="buttons">
+      <button type="button" class="primary" onclick="printSingleLabel()">Print Label</button>
+      <button type="button" class="secondary" onclick="closeSingleLabel()">Close</button>
+    </div>
+  </div>
+</div>
+<div id="labelPrintSheet" hidden></div>
 
 <div id="appRoot" class="app-hidden">
 
@@ -1936,6 +1965,7 @@ function renderInventory() {
                     <div class="buttons">
                         <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
                         <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
+                        <button class="secondary" onclick='openSingleLabel(${JSON.stringify(item.id)})'>Print Label</button>
                         <button class="danger" onclick='deleteItem(${JSON.stringify(item.id)})'>Delete</button>
                     </div>
                 </div>
@@ -1946,6 +1976,55 @@ function renderInventory() {
     updateStats();
 }
 
+
+function makeSingleLabel(item) {
+    const label = document.createElement("div");
+    label.className = "single-label-preview";
+    const name = document.createElement("div");
+    name.className = "single-label-name";
+    name.textContent = item.name || "Unnamed item";
+    const location = document.createElement("div");
+    location.className = "single-label-location";
+    location.textContent = item.location || "Location not set";
+    label.append(name, location);
+    if (item.partNumber) {
+        const detail = document.createElement("div");
+        detail.className = "single-label-details";
+        detail.textContent = "Part #: " + item.partNumber;
+        label.append(detail);
+    }
+    return label;
+}
+
+function openSingleLabel(id) {
+    const item = inventory.find(entry => String(entry.id) === String(id));
+    if (!item) { alert("This item is no longer in the inventory."); return; }
+    const preview = document.getElementById("singleLabelPreview");
+    const sheet = document.getElementById("labelPrintSheet");
+    const label = makeSingleLabel(item);
+    preview.replaceChildren(...Array.from(label.childNodes).map(node => node.cloneNode(true)));
+    sheet.replaceChildren(label);
+    document.getElementById("singleLabelDialog").hidden = false;
+}
+
+function closeSingleLabel() {
+    document.getElementById("singleLabelDialog").hidden = true;
+}
+
+function printSingleLabel() {
+    const sheet = document.getElementById("labelPrintSheet");
+    if (!sheet.firstElementChild) return;
+    sheet.hidden = false;
+    document.body.classList.add("printing-single-label");
+    const cleanup = () => {
+        document.body.classList.remove("printing-single-label");
+        sheet.hidden = true;
+        window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+    setTimeout(cleanup, 1500);
+}
 
 function printInventory(){
  const filtered=getFilteredInventory();
