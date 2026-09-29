@@ -2038,16 +2038,31 @@ function closeSingleLabel() {
 function printSingleLabel() {
     const sheet = document.getElementById("labelPrintSheet");
     if (!sheet.firstElementChild) return;
-    sheet.hidden = false;
-    document.body.classList.add("printing-single-label");
-    const cleanup = () => {
-        document.body.classList.remove("printing-single-label");
-        sheet.hidden = true;
-        window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    window.print();
-    setTimeout(cleanup, 1500);
+    // Keep the app out of the print document entirely. iOS can build its print
+    // preview after an afterprint event or timer has restored the app page.
+    const labelWindow = window.open("", "_blank");
+    if (!labelWindow) {
+        alert("Allow pop-ups for this site, then tap Print Label again.");
+        return;
+    }
+    const label = sheet.firstElementChild.cloneNode(true);
+    const documentForLabel = labelWindow.document;
+    documentForLabel.open();
+    documentForLabel.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inventory Label</title>
+<style>
+@page{size:3.15in 2in;margin:0}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#111827;font-family:Arial,Helvetica,sans-serif}
+.toolbar{padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toolbar button{font:inherit;padding:10px 15px;border:0;border-radius:7px;background:#2563eb;color:white}
+.toolbar p{margin:0;font-size:13px}
+.single-label-preview{width:3.15in;min-height:2in;max-height:2in;overflow:hidden;padding:.12in;display:flex;align-items:center;justify-content:space-between;gap:.08in;background:white;color:#111827;border:1px solid #777;overflow-wrap:anywhere}
+.single-label-text{min-width:0;flex:1}.single-label-name{font-weight:800;font-size:16px;line-height:1.2}.single-label-location{font-size:13px;margin-top:7px}.single-label-details{font-size:10px;margin-top:5px}
+.single-label-qr{display:block;width:.95in;height:.95in;object-fit:contain;image-rendering:pixelated;flex:none}
+@media print{.toolbar{display:none}.single-label-preview{border:0;break-inside:avoid}html,body{width:3.15in;height:2in;overflow:hidden}}
+</style></head><body><div class="toolbar"><button onclick="window.print()">Print this label</button><p>To use the M220 app, save this one-page print preview as a PDF, then open its PDF Print feature.</p></div><main id="labelOnly"></main></body></html>`);
+    documentForLabel.close();
+    documentForLabel.getElementById("labelOnly").appendChild(label);
+    labelWindow.focus();
 }
 
 function printInventory(){
