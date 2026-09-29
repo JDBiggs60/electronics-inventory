@@ -449,6 +449,7 @@ button {
 #photoLightbox{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px}
 #photoLightbox img{max-width:94vw;max-height:90vh;object-fit:contain;background:#fff;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.45)}
 .photo-lightbox-close{position:fixed;top:14px;right:18px;width:48px;height:48px;border-radius:50%;background:#fff;color:#111;font-size:30px;line-height:1;padding:0;font-weight:700}
+.notes-toggle{background:transparent;color:#2563eb;padding:2px 4px;margin-left:4px;font-size:14px;font-weight:700;text-decoration:underline}
 
 </style>
 </head>
@@ -2022,7 +2023,7 @@ function renderInventory() {
                             : ""}
 
                         ${item.notes
-                            ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
+                            ? `<br><b>Notes:</b> ${renderNotes(item)}`
                             : ""}
 
                         <br>
@@ -2323,6 +2324,26 @@ function escapeHTML(value) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+const NOTES_PREVIEW_LENGTH = 250;
+
+function renderNotes(item) {
+    const notes = String(item?.notes || "");
+    if (notes.length <= NOTES_PREVIEW_LENGTH) return escapeHTML(notes);
+    const preview = notes.slice(0, NOTES_PREVIEW_LENGTH).trimEnd();
+    const id = escapeHTML(String(item.id));
+    return `<span id="notes-preview-${id}">${escapeHTML(preview)}… <button type="button" class="notes-toggle" onclick='toggleItemNotes(${JSON.stringify(item.id)},true)'>Show More</button></span>` +
+           `<span id="notes-full-${id}" hidden>${escapeHTML(notes)} <button type="button" class="notes-toggle" onclick='toggleItemNotes(${JSON.stringify(item.id)},false)'>Show Less</button></span>`;
+}
+
+function toggleItemNotes(id, showFull) {
+    const key = String(id);
+    const preview = document.getElementById("notes-preview-" + key);
+    const full = document.getElementById("notes-full-" + key);
+    if (!preview || !full) return;
+    preview.hidden = !!showFull;
+    full.hidden = !showFull;
 }
 
 function localMigrationKey() {
