@@ -475,7 +475,7 @@ button {
   <div class="single-label-panel">
     <h2 id="singleLabelHeading">Label preview</h2>
     <div id="singleLabelPreview" class="single-label-preview"></div>
-    <p class="lookup-hint">Creates one 3.15 × 2 inch PDF label to open with the M220 printer app.</p>
+    <p class="lookup-hint">Creates one 40 × 30 mm PDF label to open with the M220 printer app.</p>
     <div class="buttons">
       <button type="button" class="primary" onclick="printSingleLabel()">Make Label PDF</button>
       <button type="button" class="secondary" onclick="closeSingleLabel()">Close</button>
@@ -2046,16 +2046,16 @@ function labelPdfFromJpeg(jpegBytes, imageWidth, imageHeight) {
         offsets[number] = length;
         write(number + " 0 obj\n" + body + "\nendobj\n");
     };
-    // PDF points: 3.15 × 2 inches. One page, one embedded JPEG image.
+    // PDF points: 40 × 30 mm. One page, one embedded JPEG image.
     write("%PDF-1.4\n");
     object(1, "<< /Type /Catalog /Pages 2 0 R >>");
     object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-    object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 226.8 144] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>");
+    object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 113.386 85.039] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>");
     offsets[4] = length;
     write("4 0 obj\n<< /Type /XObject /Subtype /Image /Width " + imageWidth + " /Height " + imageHeight + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n");
     add(jpegBytes);
     write("\nendstream\nendobj\n");
-    const drawing = "q\n226.8 0 0 144 0 0 cm\n/Im1 Do\nQ\n";
+    const drawing = "q\n113.386 0 0 85.039 0 0 cm\n/Im1 Do\nQ\n";
     object(5, "<< /Length " + encoder.encode(drawing).length + " >>\nstream\n" + drawing + "endstream");
     const startXref = length;
     write("xref\n0 6\n0000000000 65535 f \n");
@@ -2074,10 +2074,14 @@ function labelLine(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
             ctx.fillText(line, x, y + count * lineHeight, maxWidth);
             count++;
             line = word;
-            if (count >= maxLines) return;
+            if (count >= maxLines) return count;
         } else line = next;
     }
-    if (line && count < maxLines) ctx.fillText(line, x, y + count * lineHeight, maxWidth);
+    if (line && count < maxLines) {
+        ctx.fillText(line, x, y + count * lineHeight, maxWidth);
+        count++;
+    }
+    return count;
 }
 
 async function printSingleLabel() {
@@ -2087,28 +2091,27 @@ async function printSingleLabel() {
     if (button) button.disabled = true;
     try {
         const canvas = document.createElement("canvas");
-        canvas.width = 945;
-        canvas.height = 600;
+        canvas.width = 480;
+        canvas.height = 360;
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("This browser could not create the label.");
         ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, 945, 600);
+        ctx.fillRect(0, 0, 480, 360);
         ctx.fillStyle = "#111";
         ctx.textBaseline = "top";
-        ctx.font = "bold 53px Arial, sans-serif";
-        labelLine(ctx, label.querySelector(".single-label-name")?.textContent, 35, 45, 600, 61, 3);
-        ctx.font = "39px Arial, sans-serif";
-        labelLine(ctx, label.querySelector(".single-label-location")?.textContent, 35, 258, 600, 46, 2);
+        ctx.font = "bold 37px Arial, sans-serif";
+        const nameLines = labelLine(ctx, label.querySelector(".single-label-name")?.textContent, 17, 22, 275, 44, 3);
         ctx.font = "29px Arial, sans-serif";
-        labelLine(ctx, label.querySelector(".single-label-details")?.textContent, 35, 390, 600, 35, 2);
+        const locationY = 22 + nameLines * 44 + 17;
+        const locationLines = labelLine(ctx, label.querySelector(".single-label-location")?.textContent, 17, locationY, 275, 35, 2);
+        ctx.font = "24px Arial, sans-serif";
+        labelLine(ctx, label.querySelector(".single-label-details")?.textContent, 17, Math.min(locationY + locationLines * 35 + 18, 312), 275, 29, 1);
         const qrSource = label.querySelector(".single-label-qr")?.src;
         if (!qrSource) throw new Error("The QR code is missing. Open the label again.");
         const qr = new Image();
         await new Promise((resolve, reject) => { qr.onload = resolve; qr.onerror = reject; qr.src = qrSource; });
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(qr, 660, 125, 255, 255);
-        ctx.font = "23px Arial, sans-serif";
-        ctx.fillText("Scan for item details", 662, 405, 250);
+        ctx.drawImage(qr, 310, 93, 154, 154);
         const jpegUrl = canvas.toDataURL("image/jpeg", 0.94);
         const raw = atob(jpegUrl.slice(jpegUrl.indexOf(",") + 1));
         const jpegBytes = Uint8Array.from(raw, character => character.charCodeAt(0));
