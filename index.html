@@ -689,6 +689,14 @@ button {
             </div>
 
             <div class="full">
+                <label>What It’s Used For</label>
+                <textarea
+                    id="usedFor"
+                    placeholder="AI will add a short plain-English explanation of what this item is commonly used for."
+                ></textarea>
+            </div>
+
+            <div class="full">
                 <label>Notes</label>
                 <textarea
                     id="notes"
@@ -1039,10 +1047,19 @@ async function identifyElectronics(imageData) {
                 ? result.visible_markings.trim()
                 : "";
 
+        const usedFor =
+            typeof result.used_for === "string"
+                ? result.used_for.trim()
+                : "";
+
         const aiNotes =
             typeof result.notes === "string"
                 ? result.notes.trim()
                 : "";
+
+        if (usedFor) {
+            document.getElementById("usedFor").value = usedFor;
+        }
 
         if (name) {
             document.getElementById("itemName").value = name;
@@ -1456,6 +1473,7 @@ function rowToItem(row) {
         quantity: Number(row.quantity || 1),
         location: row.storage_location || "",
         condition: row.condition || "New",
+        usedFor: row.used_for || "",
         notes: row.notes || "",
         photo: row.photo_path || "",
         createdAt: row.created_at || "",
@@ -1584,6 +1602,7 @@ async function saveItem() {
     const quantity = parseInt(document.getElementById("quantity").value) || 1;
     const location = document.getElementById("location").value.trim();
     const condition = document.getElementById("condition").value;
+    const usedFor = document.getElementById("usedFor").value.trim();
     const notes = document.getElementById("notes").value.trim();
 
     if (!name) {
@@ -1643,6 +1662,7 @@ async function saveItem() {
             quantity,
             storage_location: location,
             condition,
+            used_for: usedFor,
             notes,
             photo_path: currentPhoto || null
         })
@@ -1736,7 +1756,7 @@ async function removeOne(id) {
 
 function clearForm() {
     stopBarcodeScanner();
-    ["itemName","manufacturer","partNumber","barcode","location","notes"].forEach(id=>document.getElementById(id).value="");
+    ["itemName","manufacturer","partNumber","barcode","location","usedFor","notes"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("section").value="";
     document.getElementById("category").value="";
     document.getElementById("quantity").value=1;
@@ -1851,6 +1871,7 @@ function getFilteredInventory() {
             item.partNumber + " " +
             item.barcode + " " +
             item.location + " " +
+            item.usedFor + " " +
             item.notes
         );
 
@@ -1961,6 +1982,10 @@ function renderInventory() {
 
                         <br>
                         <b>Condition:</b> ${escapeHTML(item.condition)}
+
+                        ${item.usedFor
+                            ? `<br><b>What It’s Used For:</b> ${escapeHTML(item.usedFor)}`
+                            : ""}
 
                         ${item.notes
                             ? `<br><b>Notes:</b> ${escapeHTML(item.notes)}`
@@ -2338,6 +2363,7 @@ async function migrateLocalInventoryOnce() {
             quantity: Number(item.quantity || 1),
             storage_location: item.location,
             condition: item.condition || "New",
+            used_for: item.usedFor || item.used_for || "",
             notes: item.notes || "",
             photo_path: item.photo || null
         }));
