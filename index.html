@@ -403,6 +403,10 @@ button {
 .location-card{border:1px solid #d7dce3;border-radius:9px;padding:12px;background:#fafafa}
 .location-card button{width:100%;text-align:left;background:transparent;padding:0;font-weight:700}
 .location-card small{display:block;margin-top:5px;color:#64748b}
+.location-card .location-label-btn{margin-top:10px;background:#e5e7eb;color:#111827;padding:8px 10px;border-radius:7px;text-align:center;font-size:14px;font-weight:700}
+.location-card .location-label-btn:hover{background:#d1d5db}
+.edit-item-notice{display:none;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;padding:11px 12px;border-radius:8px;margin:0 0 14px}
+.edit-item-notice strong{display:block;margin-bottom:3px}
 @media(max-width:700px){.location-builder,.location-list{grid-template-columns:1fr}}
 
 
@@ -553,6 +557,10 @@ button {
     <div class="panel">
 
         <h2>Add Electronic Item</h2>
+        <div id="editItemNotice" class="edit-item-notice">
+            <strong>Editing saved item</strong>
+            <span id="editItemNoticeName"></span> Existing additional photos stay attached unless you add new ones.
+        </div>
 
         <div class="form-grid">
 
@@ -728,11 +736,11 @@ button {
         <div id="duplicateWarning" class="warning"></div>
 
         <div class="buttons">
-            <button class="primary" onclick="saveItem()">
+            <button id="saveItemButton" class="primary" onclick="saveItem()">
                 Save Item
             </button>
 
-            <button class="secondary" onclick="clearForm()">
+            <button id="clearFormButton" class="secondary" onclick="clearForm()">
                 Clear
             </button>
         </div>
@@ -841,6 +849,7 @@ let realtimeChannel = null;
 let barcodeStream = null;
 let barcodeDetector = null;
 let barcodeScanActive = false;
+let editingItemId = null;
 
 const photoInput = document.getElementById("photo");
 const cameraPhotoInput = document.getElementById("cameraPhoto");
@@ -1549,7 +1558,7 @@ function nameSimilarity(a, b) {
     return common / Math.max(aWords.length, bWords.length);
 }
 
-function findDuplicate(name, partNumber, barcode, manufacturer = "") {
+function findDuplicate(name, partNumber, barcode, manufacturer = "", excludeId = null) {
     const cleanName = normalize(name);
     const cleanPart = normalize(partNumber);
     const cleanBarcode = normalize(barcode);
@@ -1560,6 +1569,7 @@ function findDuplicate(name, partNumber, barcode, manufacturer = "") {
     let bestReason = "";
 
     inventory.forEach(item => {
+        if (excludeId !== null && String(item.id) === String(excludeId)) return;
         let score = 0;
         let reason = "";
 
@@ -1601,6 +1611,64 @@ function findDuplicate(name, partNumber, barcode, manufacturer = "") {
     return bestMatch ? { item: bestMatch, score: bestScore, reason: bestReason } : null;
 }
 
+function startEditItem(id) {
+    const item = inventory.find(entry => String(entry.id) === String(id));
+    if (!item) {
+        alert("That item is no longer in the inventory.");
+        return;
+    }
+
+    editingItemId = item.id;
+    document.getElementById("itemName").value = item.name || "";
+    document.getElementById("section").value = item.section || "";
+    document.getElementById("category").value = item.category || "";
+    document.getElementById("manufacturer").value = item.manufacturer || "";
+    document.getElementById("partNumber").value = item.partNumber || "";
+    document.getElementById("barcode").value = item.barcode || "";
+    document.getElementById("quantity").value = Math.max(1, Number(item.quantity || 1));
+    document.getElementById("location").value = item.location || "";
+    document.getElementById("condition").value = item.condition || "Unknown";
+    document.getElementById("usedFor").value = item.usedFor || "";
+    document.getElementById("notes").value = item.notes || "";
+    syncLocationBuilderFromFinal();
+
+    currentPhoto = item.photo || "";
+    currentBackPhoto = "";
+    currentExtraPhotos = [];
+    extraPhotoCounter = 0;
+    ["photo","cameraPhoto","backPhoto","cameraBackPhoto"].forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) input.value = "";
+    });
+    document.getElementById("extraPhotos").innerHTML = "";
+
+    if (currentPhoto) {
+        photoPreview.src = currentPhoto;
+        photoPreview.style.display = "block";
+        document.getElementById("photoFileName").textContent = "Existing front photo — choose another only to replace it";
+    } else {
+        photoPreview.src = "";
+        photoPreview.style.display = "none";
+        document.getElementById("photoFileName").textContent = "No front photo selected";
+    }
+
+    backPhotoPreview.src = "";
+    backPhotoPreview.style.display = "none";
+    const savedAdditionalCount = Math.max(0, getItemPhotos(item).length - (item.photo ? 1 : 0));
+    document.getElementById("backPhotoFileName").textContent = savedAdditionalCount
+        ? savedAdditionalCount + " saved additional photo" + (savedAdditionalCount === 1 ? " remains attached" : "s remain attached")
+        : "No new back photo selected";
+
+    document.getElementById("duplicateWarning").style.display = "none";
+    document.getElementById("saveItemButton").textContent = "Update Item";
+    document.getElementById("clearFormButton").textContent = "Cancel Edit";
+    document.getElementById("editItemNoticeName").textContent = item.name + ".";
+    document.getElementById("editItemNotice").style.display = "block";
+
+    document.getElementById("editItemNotice").scrollIntoView({ behavior: "smooth", block: "start" });
+    setSyncStatus("Editing " + item.name + ". Make your changes, then choose Update Item.");
+}
+
 async function saveItem() {
     if (!currentUser) {
         alert("Please sign in first.");
@@ -1629,7 +1697,7 @@ async function saveItem() {
         return;
     }
 
-    const duplicateMatch = findDuplicate(name, partNumber, barcode, manufacturer);
+    const duplicateMatch = findDuplicate(name, partNumber, barcode, manufacturer, editingItemId);
     const duplicate = duplicateMatch?.item || null;
 
     if (duplicate) {
@@ -1659,6 +1727,49 @@ async function saveItem() {
         );
 
         if (!continueSaving) return;
+    }
+
+    if (editingItemId !== null) {
+        const itemId = editingItemId;
+        setSyncStatus("Updating item…");
+
+        const { error: updateError } = await db
+            .from("inventory_items")
+            .update({
+                name,
+                section,
+                category,
+                manufacturer,
+                part_number: partNumber,
+                barcode,
+                quantity,
+                storage_location: location,
+                condition,
+                used_for: usedFor,
+                notes,
+                photo_path: currentPhoto || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", itemId)
+            .eq("user_id", currentUser.id);
+
+        if (updateError) {
+            setSyncStatus("Update failed: " + updateError.message, false);
+            alert("Could not update item: " + updateError.message);
+            return;
+        }
+
+        try {
+            await saveAdditionalPhotos(itemId);
+        } catch (photoError) {
+            console.error("Additional photo save failed:", photoError);
+            alert("The item was updated, but the new extra photos could not be saved: " + (photoError.message || "Unknown error"));
+        }
+
+        clearForm();
+        await loadInventory();
+        setSyncStatus("Item updated and cloud synced");
+        return;
     }
 
     setSyncStatus("Saving to cloud…");
@@ -1770,6 +1881,13 @@ async function removeOne(id) {
 
 function clearForm() {
     stopBarcodeScanner();
+    editingItemId = null;
+    const saveButton = document.getElementById("saveItemButton");
+    const clearButton = document.getElementById("clearFormButton");
+    const editNotice = document.getElementById("editItemNotice");
+    if (saveButton) saveButton.textContent = "Save Item";
+    if (clearButton) clearButton.textContent = "Clear";
+    if (editNotice) editNotice.style.display = "none";
     ["itemName","manufacturer","partNumber","barcode","location","usedFor","notes"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("section").value="";
     document.getElementById("category").value="";
@@ -1833,7 +1951,8 @@ function renderStorageLocations(){
  target.innerHTML=locations.map(location=>{
   const items=inventory.filter(item=>String(item.location||"").trim()===location);
   const pieces=items.reduce((sum,item)=>sum+Number(item.quantity||0),0);
-  return `<div class="location-card"><button type="button" onclick='viewStorageLocation(${JSON.stringify(location)})'>${escapeHTML(location)}</button><small>${items.length} different item${items.length===1?"":"s"} • ${pieces} total piece${pieces===1?"":"s"}</small></div>`;
+  const encodedLocation = encodeURIComponent(location).replace(/'/g, "%27");
+  return `<div class="location-card"><button type="button" onclick="viewStorageLocation(decodeURIComponent('${encodedLocation}'))">${escapeHTML(location)}</button><small>${items.length} different item${items.length===1?"":"s"} • ${pieces} total piece${pieces===1?"":"s"}</small><button type="button" class="location-label-btn" onclick="openLocationLabel(decodeURIComponent('${encodedLocation}'))">Print QR Location Label</button></div>`;
  }).join("");
 }
 function viewStorageLocation(location){
@@ -2031,6 +2150,7 @@ function renderInventory() {
                     </div>
 
                     <div class="buttons">
+                        <button class="secondary" onclick='startEditItem(${JSON.stringify(item.id)})'>Edit Item</button>
                         <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
                         <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
                         <button class="secondary" onclick='openSingleLabel(${JSON.stringify(item.id)})'>Print Label</button>
@@ -2088,6 +2208,56 @@ function openSingleLabel(id) {
     catch (error) { alert(error.message || "Could not make this item's QR code."); return; }
     preview.replaceChildren(...Array.from(label.childNodes).map(node => node.cloneNode(true)));
     sheet.replaceChildren(label);
+    document.getElementById("singleLabelHeading").textContent = "Item label preview";
+    document.getElementById("singleLabelDialog").hidden = false;
+}
+
+function makeLocationLabel(location) {
+    const cleanLocation = String(location || "").trim();
+    const label = document.createElement("div");
+    label.className = "single-label-preview";
+
+    const text = document.createElement("div");
+    text.className = "single-label-text";
+    const name = document.createElement("div");
+    name.className = "single-label-name";
+    name.textContent = cleanLocation || "Storage Location";
+    const description = document.createElement("div");
+    description.className = "single-label-location";
+    description.textContent = "Scan to view contents";
+    text.append(name, description);
+    label.append(text);
+
+    if (typeof qrcode !== "function") throw new Error("QR generator unavailable. Check your internet connection and reload the app.");
+    const destination = new URL(window.location.origin + window.location.pathname);
+    destination.searchParams.set("location", cleanLocation);
+    const code = qrcode(0, "M");
+    code.addData(destination.href);
+    code.make();
+    const image = document.createElement("img");
+    image.className = "single-label-qr";
+    image.alt = "QR code to open storage location " + cleanLocation;
+    image.src = code.createDataURL(6, 8);
+    label.append(image);
+    return label;
+}
+
+function openLocationLabel(location) {
+    const cleanLocation = String(location || "").trim();
+    if (!cleanLocation) return;
+    if (!inventory.some(item => String(item.location || "").trim() === cleanLocation)) {
+        alert("That storage location is no longer in the inventory.");
+        return;
+    }
+
+    const preview = document.getElementById("singleLabelPreview");
+    const sheet = document.getElementById("labelPrintSheet");
+    let label;
+    try { label = makeLocationLabel(cleanLocation); }
+    catch (error) { alert(error.message || "Could not make this location's QR code."); return; }
+    preview.replaceChildren(...Array.from(label.childNodes).map(node => node.cloneNode(true)));
+    sheet.replaceChildren(label);
+    document.getElementById("singleLabelHeading").textContent = "Location label preview";
     document.getElementById("singleLabelDialog").hidden = false;
 }
 
@@ -2466,16 +2636,35 @@ function startRealtime() {
 
 let pendingQrItemOpened = false;
 function openItemFromQrLink() {
-    const itemId = new URLSearchParams(window.location.search).get("item");
-    if (!itemId || pendingQrItemOpened || !currentUser) return;
+    const params = new URLSearchParams(window.location.search);
+    const itemId = params.get("item");
+    const qrLocation = params.get("location");
+    if ((!itemId && !qrLocation) || pendingQrItemOpened || !currentUser) return;
     pendingQrItemOpened = true;
     document.getElementById("search").value = "";
     ["filterSection", "filterCategory", "filterLocation"].forEach(id => {
         document.getElementById(id).value = "";
     });
-    const item = inventory.find(entry => String(entry.id) === itemId);
-    if (!item) { alert("That item was not found in this account's inventory."); return; }
-    openInventoryItem(item.id);
+
+    if (itemId) {
+        const item = inventory.find(entry => String(entry.id) === itemId);
+        if (!item) { alert("That item was not found in this account's inventory."); return; }
+        openInventoryItem(item.id);
+        return;
+    }
+
+    const location = String(qrLocation || "").trim();
+    const locationExists = inventory.some(item => String(item.location || "").trim() === location);
+    if (!locationExists) {
+        alert("That storage location was not found in this account's inventory.");
+        return;
+    }
+
+    refreshInventoryFilters();
+    document.getElementById("filterLocation").value = location;
+    inventoryView = "list";
+    renderInventory();
+    requestAnimationFrame(() => document.getElementById("inventoryTableWrap")?.scrollIntoView({ behavior: "smooth", block: "start" }));
 }
 
 async function enterApp(user) {
