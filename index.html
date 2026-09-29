@@ -442,10 +442,23 @@ button {
  body.printing-single-label #labelPrintSheet{display:block!important;position:static;margin:0;padding:0;background:white;color:black}
  body.printing-single-label #labelPrintSheet .single-label-preview{margin:0;max-width:3.5in;box-sizing:border-box;border:1px solid #777;border-radius:0;break-inside:avoid}
 }
+
+/* Click/tap photo viewer */
+.item-card img,.inventory-table img{cursor:zoom-in}
+#photoLightbox[hidden]{display:none!important}
+#photoLightbox{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:20px}
+#photoLightbox img{max-width:94vw;max-height:90vh;object-fit:contain;background:#fff;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.photo-lightbox-close{position:fixed;top:14px;right:18px;width:48px;height:48px;border-radius:50%;background:#fff;color:#111;font-size:30px;line-height:1;padding:0;font-weight:700}
+
 </style>
 </head>
 
 <body>
+<div id="photoLightbox" hidden role="dialog" aria-modal="true" aria-label="Enlarged inventory photo" onclick="if(event.target===this)closePhotoLightbox()">
+  <button type="button" class="photo-lightbox-close" onclick="closePhotoLightbox()" aria-label="Close enlarged photo">×</button>
+  <img id="photoLightboxImage" alt="Enlarged inventory photo">
+</div>
+
 
 <div id="authWrap" class="auth-wrap">
     <div class="auth-card">
@@ -1910,6 +1923,27 @@ function openInventoryItem(id) {
     });
 }
 
+function openPhotoLightbox(photo) {
+    if (!photo) return;
+    const box = document.getElementById("photoLightbox");
+    const image = document.getElementById("photoLightboxImage");
+    image.src = photo;
+    box.hidden = false;
+    document.body.style.overflow = "hidden";
+}
+
+function closePhotoLightbox() {
+    const box = document.getElementById("photoLightbox");
+    const image = document.getElementById("photoLightboxImage");
+    box.hidden = true;
+    image.src = "";
+    document.body.style.overflow = "";
+}
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !document.getElementById("photoLightbox").hidden) closePhotoLightbox();
+});
+
 function renderInventory() {
     const inventoryDiv = document.getElementById("inventory");
     const tableWrap = document.getElementById("inventoryTableWrap");
@@ -1951,7 +1985,7 @@ function renderInventory() {
             inventoryDiv.innerHTML = filtered.map(item => `
                 <div class="item-card" id="inventory-card-${escapeHTML(String(item.id))}">
 
-                    ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="">`).join("")}</div>` : ""}
+                    ${getItemPhotos(item).length ? `<div class="saved-photo-strip">${getItemPhotos(item).map(photo => `<img src="${photo}" alt="${escapeHTML(item.name)}" title="Click to enlarge" onclick='openPhotoLightbox(${JSON.stringify(photo)})'>`).join("")}</div>` : ""}
 
                     ${item.section
                         ? `<div class="item-info"><b>Section:</b> ${escapeHTML(item.section)}</div>`
