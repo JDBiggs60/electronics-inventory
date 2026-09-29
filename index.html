@@ -461,6 +461,22 @@ button {
 .backup-status.good{color:#166534}
 .backup-status.bad{color:#b91c1c}
 
+
+/* Duplicate review stays readable on both phone and desktop. */
+.duplicate-dialog {
+    width: min(520px, calc(100% - 32px));
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    border: 0;
+    border-radius: 12px;
+    padding: 22px;
+    color: #222;
+}
+.duplicate-dialog::backdrop { background: rgba(0,0,0,.55); }
+.duplicate-dialog p { line-height: 1.45; white-space: pre-line; }
+.duplicate-dialog .buttons { display: flex; flex-direction: column; }
+.duplicate-dialog .buttons button { width: 100%; margin: 0; }
+
 </style>
 </head>
 
@@ -1020,7 +1036,7 @@ async function savePileItems() {
   for (const item of candidates) {
    const category=mapAICategory({category:item.category,name:item.name,partNumber:item.partNumber,notes:item.notes}) || "Other";
    const row={user_id:currentUser.id,name:item.name.trim(),section:mapInventorySection({category,name:item.name,partNumber:item.partNumber,notes:item.notes})||"Other",category,
-    manufacturer:item.manufacturer,part_number:item.partNumber,barcode:"",quantity:Number(item.quantity),storage_location:location,condition:"New",
+    manufacturer:item.manufacturer,part_number:item.partNumber,barcode:"",quantity:Number(item.quantity),storage_location:location,condition:"Unknown",
     notes:["Identified from a pile photo; verify details.",item.notes].filter(Boolean).join("\n"),photo_path:pilePhoto};
    const {error}=await db.from("inventory_items").insert(row);
    if(error){failure=error.message;break}
@@ -1692,7 +1708,138 @@ function startEditItem(id) {
     setSyncStatus("Editing " + item.name + ". Make your changes, then choose Update Item.");
 }
 
+let itemSaveInProgress = false;
+
 async function saveItem() {
+    if (itemSaveInProgress) return;
+    itemSaveInProgress = true;
+    const buttons = ["saveItemButton", "clearFormButton"].map(id => document.getElementById(id));
+    buttons.forEach(button => { if (button) button.disabled = true; });
+    try {
+        await saveItemInternal();
+    } catch (error) {
+        setSyncStatus("Save could not finish: " + (error.message || "Unknown error"), false);
+        alert("Save could not finish. Check the inventory before trying again: " + (error.message || "Unknown error"));
+    } finally {
+        itemSaveInProgress = false;
+        buttons.forEach(button => { if (button) button.disabled = false; });
+    }
+}
+
+function chooseDuplicateAction(match, quantity, location, condition) {
+    return new Promise(resolve => {
+        const item = match.item;
+        const dialog = document.createElement("dialog");
+        dialog.className = "duplicate-dialog";
+        dialog.setAttribute("aria-labelledby", "duplicateDialogTitle");
+        const title = document.createElement("h2");
+        title.id = "duplicateDialogTitle";
+        title.textContent = "Possible Duplicate Found";
+        const details = document.createElement("p");
+        details.textContent = `${item.name}\nAlready recorded: ${item.quantity}\nStored at: ${item.location}\nCondition: ${item.condition}\nMatch: ${match.reason}`;
+        const explanation = document.createElement("p");
+        explanation.textContent = `Add ${quantity} more for a total of ${Number(item.quantity) + quantity}? Only combine them if they are the same part and will be stored together with the same condition. The existing item's details stay in place; new photos are attached to it.`;
+        if (normalize(location) !== normalize(item.location) || condition !== item.condition) {
+            const difference = document.createElement("p");
+            difference.textContent = `Your new entry says: ${location}, ${condition}. Combining keeps the existing location and condition shown above. Choose a separate item if these parts will be kept separately.`;
+            dialog.append(title, details, explanation, difference);
+        } else {
+            dialog.append(title, details, explanation);
+        }
+        const actions = document.createElement("div");
+        actions.className = "buttons";
+        let finished = false;
+        const finish = action => {
+            if (finished) return;
+            finished = true;
+            dialog.close();
+            dialog.remove();
+            resolve(action);
+        };
+        for (const [action, label, className] of [
+            ["add", `Add ${quantity} to Existing Quantity`, "primary"],
+            ["separate", "Save as Separate Item", "secondary"],
+            ["cancel", "Cancel", "secondary"]
+        ]) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = className;
+            button.textContent = label;
+            button.addEventListener("click", () => finish(action));
+            actions.append(button);
+        }
+        dialog.append(actions);
+        dialog.addEventListener("cancel", event => { event.preventDefault(); finish("cancel"); });
+        dialog.addEventListener("close", () => finish("cancel"));
+        document.body.append(dialog);
+        dialog.showModal();
+    });
+}
+
+async function addDuplicateQuantity(duplicate, quantity) {
+    const ownerId = currentUser.id;
+    setSyncStatus("Checking existing quantity…");
+    // Read the current cloud count and require it still to match when updating.
+    const { data: row, error: readError } = await db.from("inventory_items")
+        .select("*").eq("id", duplicate.id).eq("user_id", ownerId).maybeSingle();
+    if (readError) throw readError;
+    if (!row) { alert("This item is no longer available. Refresh the inventory before saving."); return; }
+    const latest = rowToItem(row);
+    if (latest.quantity !== duplicate.quantity || latest.location !== duplicate.location ||
+        latest.condition !== duplicate.condition || latest.name !== duplicate.name ||
+        latest.partNumber !== duplicate.partNumber || latest.barcode !== duplicate.barcode ||
+        latest.manufacturer !== duplicate.manufacturer) {
+        await loadInventory();
+        alert("The existing item changed since it was shown. Your new entry is still in the form. Choose Save Item again to review the latest details.");
+        return;
+    }
+    const newQuantity = latest.quantity + quantity;
+    if (!Number.isSafeInteger(newQuantity) || newQuantity > 2147483647) {
+        alert("The combined quantity is too large. Please check the quantities."); return;
+    }
+    const { data: updated, error: updateError } = await db.from("inventory_items")
+        .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+        .eq("id", duplicate.id).eq("user_id", ownerId).eq("quantity", row.quantity).select("id");
+    if (updateError) throw updateError;
+    if (!updated?.length) {
+        await loadInventory();
+        alert("The quantity changed while saving. Nothing was added. Choose Save Item again to review the latest count.");
+        return;
+    }
+    // Attach new photos without replacing the existing front or other photos.
+    let photoFailure = "";
+    try {
+        const existing = new Set(getItemPhotos(latest));
+        const selectedPhotos = [
+            { photo: currentPhoto, type: "extra-front" },
+            { photo: currentBackPhoto, type: "back" },
+            ...currentExtraPhotos.map((p, i) => ({ photo: p.data, type: "extra-" + (i + 1) }))
+        ];
+        const newPhotos = selectedPhotos.filter(p => {
+            if (!p.photo || existing.has(p.photo)) return false;
+            existing.add(p.photo); return true;
+        });
+        if (newPhotos.length) {
+            const { data: saved, error: photoReadError } = await db.from("inventory_item_photos")
+                .select("sort_order").eq("inventory_item_id", duplicate.id).eq("user_id", ownerId);
+            if (photoReadError) throw photoReadError;
+            const lastOrder = Math.max(1, ...(saved || []).map(p => Number(p.sort_order) || 0));
+            const { error: photoError } = await db.from("inventory_item_photos").insert(newPhotos.map((p, i) => ({
+                inventory_item_id: duplicate.id, user_id: ownerId,
+                photo_path: p.photo, photo_type: p.type, sort_order: lastOrder + i + 1
+            })));
+            if (photoError) throw photoError;
+        }
+    } catch (error) {
+        photoFailure = error.message || "Unknown error";
+    }
+    clearForm();
+    await loadInventory();
+    setSyncStatus(`Added ${quantity}. Existing quantity is now ${newQuantity}.` + (photoFailure ? " New photos were not saved." : " Cloud synced."), !photoFailure);
+    if (photoFailure) alert(`The quantity was updated to ${newQuantity}, but new photos could not be saved: ${photoFailure}\n\nDo not add the quantity again. Open the existing item with Edit to attach the photos again.`);
+}
+
+async function saveItemInternal() {
     if (!currentUser) {
         alert("Please sign in first.");
         return;
@@ -1704,7 +1851,11 @@ async function saveItem() {
     const manufacturer = document.getElementById("manufacturer").value.trim();
     const partNumber = document.getElementById("partNumber").value.trim();
     const barcode = document.getElementById("barcode").value.trim();
-    const quantity = parseInt(document.getElementById("quantity").value) || 1;
+    const quantity = Number(document.getElementById("quantity").value);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 2147483647) {
+        alert("Please enter a whole-number quantity of at least 1.");
+        return;
+    }
     const location = document.getElementById("location").value.trim();
     const condition = document.getElementById("condition").value;
     const usedFor = document.getElementById("usedFor").value.trim();
@@ -1739,17 +1890,22 @@ async function saveItem() {
             escapeHTML(duplicateMatch.reason) +
             ".<br><br>Check the existing item before adding another.";
 
-        const continueSaving = confirm(
-            "WARNING: You may already own this item.\n\n" +
-            duplicate.name +
-            "\nQuantity already recorded: " +
-            duplicate.quantity +
-            "\nLocation: " +
-            duplicate.location +
-            "\n\nDo you still want to add this as another inventory entry?"
-        );
-
-        if (!continueSaving) return;
+        if (editingItemId === null) {
+            const action = await chooseDuplicateAction(duplicateMatch, quantity, location, condition);
+            if (action === "cancel") return;
+            if (action === "add") {
+                await addDuplicateQuantity(duplicate, quantity);
+                return;
+            }
+        } else {
+            // Editing replaces this record's quantity; it must never add it to another record.
+            const continueSaving = confirm(
+                "This edited item matches another inventory entry: " + duplicate.name +
+                "\nStored at: " + duplicate.location +
+                "\n\nKeep both entries and update the item you are editing?"
+            );
+            if (!continueSaving) return;
+        }
     }
 
     if (editingItemId !== null) {
