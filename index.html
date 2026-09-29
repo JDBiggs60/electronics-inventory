@@ -475,9 +475,9 @@ button {
   <div class="single-label-panel">
     <h2 id="singleLabelHeading">Label preview</h2>
     <div id="singleLabelPreview" class="single-label-preview"></div>
-    <p class="lookup-hint">Choose your label maker and label size in the print window. We can set an exact layout once your printer arrives.</p>
+    <p class="lookup-hint">Creates one 3.15 × 2 inch PDF label to open with the M220 printer app.</p>
     <div class="buttons">
-      <button type="button" class="primary" onclick="printSingleLabel()">Print Label</button>
+      <button type="button" class="primary" onclick="printSingleLabel()">Make Label PDF</button>
       <button type="button" class="secondary" onclick="closeSingleLabel()">Close</button>
     </div>
   </div>
@@ -2035,34 +2035,103 @@ function closeSingleLabel() {
     document.getElementById("singleLabelDialog").hidden = true;
 }
 
-function printSingleLabel() {
-    const sheet = document.getElementById("labelPrintSheet");
-    if (!sheet.firstElementChild) return;
-    // Keep the app out of the print document entirely. iOS can build its print
-    // preview after an afterprint event or timer has restored the app page.
-    const labelWindow = window.open("", "_blank");
-    if (!labelWindow) {
-        alert("Allow pop-ups for this site, then tap Print Label again.");
-        return;
+function labelPdfFromJpeg(jpegBytes, imageWidth, imageHeight) {
+    const encoder = new TextEncoder();
+    const chunks = [];
+    const offsets = [0];
+    let length = 0;
+    const add = bytes => { chunks.push(bytes); length += bytes.length; };
+    const write = value => add(encoder.encode(value));
+    const object = (number, body) => {
+        offsets[number] = length;
+        write(number + " 0 obj\n" + body + "\nendobj\n");
+    };
+    // PDF points: 3.15 × 2 inches. One page, one embedded JPEG image.
+    write("%PDF-1.4\n");
+    object(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 226.8 144] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>");
+    offsets[4] = length;
+    write("4 0 obj\n<< /Type /XObject /Subtype /Image /Width " + imageWidth + " /Height " + imageHeight + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n");
+    add(jpegBytes);
+    write("\nendstream\nendobj\n");
+    const drawing = "q\n226.8 0 0 144 0 0 cm\n/Im1 Do\nQ\n";
+    object(5, "<< /Length " + encoder.encode(drawing).length + " >>\nstream\n" + drawing + "endstream");
+    const startXref = length;
+    write("xref\n0 6\n0000000000 65535 f \n");
+    for (let i = 1; i <= 5; i++) write(String(offsets[i]).padStart(10, "0") + " 00000 n \n");
+    write("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" + startXref + "\n%%EOF\n");
+    return new Blob(chunks, { type: "application/pdf" });
+}
+
+function labelLine(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
+    const words = String(value || "").split(/\s+/).filter(Boolean);
+    let line = "";
+    let count = 0;
+    for (const word of words) {
+        const next = line ? line + " " + word : word;
+        if (line && ctx.measureText(next).width > maxWidth) {
+            ctx.fillText(line, x, y + count * lineHeight, maxWidth);
+            count++;
+            line = word;
+            if (count >= maxLines) return;
+        } else line = next;
     }
-    const label = sheet.firstElementChild.cloneNode(true);
-    const documentForLabel = labelWindow.document;
-    documentForLabel.open();
-    documentForLabel.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inventory Label</title>
-<style>
-@page{size:3.15in 2in;margin:0}
-*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#111827;font-family:Arial,Helvetica,sans-serif}
-.toolbar{padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.toolbar button{font:inherit;padding:10px 15px;border:0;border-radius:7px;background:#2563eb;color:white}
-.toolbar p{margin:0;font-size:13px}
-.single-label-preview{width:3.15in;min-height:2in;max-height:2in;overflow:hidden;padding:.12in;display:flex;align-items:center;justify-content:space-between;gap:.08in;background:white;color:#111827;border:1px solid #777;overflow-wrap:anywhere}
-.single-label-text{min-width:0;flex:1}.single-label-name{font-weight:800;font-size:16px;line-height:1.2}.single-label-location{font-size:13px;margin-top:7px}.single-label-details{font-size:10px;margin-top:5px}
-.single-label-qr{display:block;width:.95in;height:.95in;object-fit:contain;image-rendering:pixelated;flex:none}
-@media print{.toolbar{display:none}.single-label-preview{border:0;break-inside:avoid}html,body{width:3.15in;height:2in;overflow:hidden}}
-</style></head><body><div class="toolbar"><button onclick="window.print()">Print this label</button><p>To use the M220 app, save this one-page print preview as a PDF, then open its PDF Print feature.</p></div><main id="labelOnly"></main></body></html>`);
-    documentForLabel.close();
-    documentForLabel.getElementById("labelOnly").appendChild(label);
-    labelWindow.focus();
+    if (line && count < maxLines) ctx.fillText(line, x, y + count * lineHeight, maxWidth);
+}
+
+async function printSingleLabel() {
+    const label = document.querySelector("#labelPrintSheet .single-label-preview");
+    if (!label) return;
+    const button = document.querySelector('#singleLabelDialog button[onclick="printSingleLabel()"]');
+    if (button) button.disabled = true;
+    try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 945;
+        canvas.height = 600;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("This browser could not create the label.");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, 945, 600);
+        ctx.fillStyle = "#111";
+        ctx.textBaseline = "top";
+        ctx.font = "bold 53px Arial, sans-serif";
+        labelLine(ctx, label.querySelector(".single-label-name")?.textContent, 35, 45, 600, 61, 3);
+        ctx.font = "39px Arial, sans-serif";
+        labelLine(ctx, label.querySelector(".single-label-location")?.textContent, 35, 258, 600, 46, 2);
+        ctx.font = "29px Arial, sans-serif";
+        labelLine(ctx, label.querySelector(".single-label-details")?.textContent, 35, 390, 600, 35, 2);
+        const qrSource = label.querySelector(".single-label-qr")?.src;
+        if (!qrSource) throw new Error("The QR code is missing. Open the label again.");
+        const qr = new Image();
+        await new Promise((resolve, reject) => { qr.onload = resolve; qr.onerror = reject; qr.src = qrSource; });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(qr, 660, 125, 255, 255);
+        ctx.font = "23px Arial, sans-serif";
+        ctx.fillText("Scan for item details", 662, 405, 250);
+        const jpegUrl = canvas.toDataURL("image/jpeg", 0.94);
+        const raw = atob(jpegUrl.slice(jpegUrl.indexOf(",") + 1));
+        const jpegBytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+        const pdf = labelPdfFromJpeg(jpegBytes, canvas.width, canvas.height);
+        const file = new File([pdf], "Electronics_Inventory_Label.pdf", { type: "application/pdf" });
+        if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+            try { await navigator.share({ files: [file], title: "Inventory label" }); return; }
+            catch (error) { if (error.name === "AbortError") return; }
+        }
+        const url = URL.createObjectURL(pdf);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        alert("One-label PDF saved. Open the M220 app and choose PDF Print, then select Electronics_Inventory_Label.pdf from Files/Downloads.");
+    } catch (error) {
+        alert("Could not make the label PDF: " + (error.message || error));
+    } finally {
+        if (button) button.disabled = false;
+    }
 }
 
 function printInventory(){
