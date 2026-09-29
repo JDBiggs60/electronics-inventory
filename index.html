@@ -455,6 +455,12 @@ button {
 .photo-lightbox-close{position:fixed;top:14px;right:18px;width:48px;height:48px;border-radius:50%;background:#fff;color:#111;font-size:30px;line-height:1;padding:0;font-weight:700}
 .notes-toggle{background:transparent;color:#2563eb;padding:2px 4px;margin-left:4px;font-size:14px;font-weight:700;text-decoration:underline}
 
+/* Backup and restore */
+.backup-panel .backup-note{margin:0 0 10px;color:#475569;line-height:1.5}
+.backup-status{margin-top:10px;color:#475569;font-size:14px;min-height:20px}
+.backup-status.good{color:#166534}
+.backup-status.bad{color:#b91c1c}
+
 </style>
 </head>
 
@@ -817,6 +823,20 @@ button {
         <div class="buttons"><button type="button" class="secondary" onclick="showAllLocations()">Show All Inventory</button></div>
     </div>
 
+
+
+    <div class="panel backup-panel">
+        <h2>Backup &amp; Restore</h2>
+        <p class="backup-note">Download a full safety copy of your inventory, including saved photos. Keep at least one backup somewhere outside this app, such as your computer, iCloud Drive, Google Drive, or a USB drive.</p>
+        <div class="buttons">
+            <button type="button" class="primary" id="downloadBackupButton" onclick="downloadFullBackup()">Download Full Backup</button>
+            <button type="button" class="secondary" onclick="document.getElementById('restoreBackupFile').click()">Restore Full Backup</button>
+            <button type="button" class="secondary" onclick="exportInventoryCsv()">Export CSV</button>
+        </div>
+        <input id="restoreBackupFile" type="file" accept=".json,application/json" class="hidden-photo-input">
+        <div id="backupStatus" class="backup-status">A full backup includes the inventory records and all saved item photos. CSV is a readable spreadsheet copy, not a complete photo backup.</div>
+    </div>
+
     <div class="panel measurement-panel">
         <h2>Printable Measurement Grid</h2>
         <p>Print an inch grid or a metric grid for photographing and measuring parts. Print at 100% / Actual Size.</p>
@@ -862,6 +882,9 @@ document.getElementById("takePhotoButton").addEventListener("click",()=>cameraPh
 document.getElementById("choosePhotoButton").addEventListener("click",()=>photoInput.click());
 document.getElementById("takeBackPhotoButton").addEventListener("click",()=>cameraBackPhotoInput.click());
 document.getElementById("chooseBackPhotoButton").addEventListener("click",()=>backPhotoInput.click());
+
+document.getElementById("restoreBackupFile").addEventListener("change", handleRestoreBackupFile);
+
 
 function copyCameraFileToInput(cameraInput,targetInput){
  const file=cameraInput.files?.[0]; if(!file)return;
@@ -2365,6 +2388,276 @@ async function printSingleLabel() {
     } finally {
         if (button) button.disabled = false;
     }
+}
+
+
+function setBackupStatus(message, good = null) {
+    const el = document.getElementById("backupStatus");
+    if (!el) return;
+    el.textContent = message;
+    el.className = "backup-status" + (good === true ? " good" : good === false ? " bad" : "");
+}
+
+function backupFileStamp(date = new Date()) {
+    const pad = value => String(value).padStart(2, "0");
+    return date.getFullYear() + "-" +
+        pad(date.getMonth() + 1) + "-" +
+        pad(date.getDate()) + "_" +
+        pad(date.getHours()) + pad(date.getMinutes());
+}
+
+async function saveFileToDevice(blob, fileName, title) {
+    const file = new File([blob], fileName, { type: blob.type || "application/octet-stream" });
+
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        try {
+            await navigator.share({ files: [file], title });
+            return "shared";
+        } catch (error) {
+            if (error?.name === "AbortError") return "cancelled";
+            console.warn("Share failed; falling back to download.", error);
+        }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return "downloaded";
+}
+
+async function downloadFullBackup() {
+    if (!currentUser) {
+        alert("Please sign in first.");
+        return;
+    }
+
+    const button = document.getElementById("downloadBackupButton");
+    if (button) button.disabled = true;
+    setBackupStatus("Preparing full backup, including saved photos…");
+
+    try {
+        const [itemsResult, photosResult] = await Promise.all([
+            db.from("inventory_items")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("created_at", { ascending: true }),
+            db.from("inventory_item_photos")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("sort_order", { ascending: true })
+        ]);
+
+        if (itemsResult.error) throw itemsResult.error;
+        if (photosResult.error) throw photosResult.error;
+
+        const items = itemsResult.data || [];
+        const photos = photosResult.data || [];
+        const now = new Date();
+        const backup = {
+            backup_format: "electronics-inventory-full-backup",
+            format_version: 1,
+            created_at: now.toISOString(),
+            app_title: "Electronics Inventory",
+            item_count: items.length,
+            additional_photo_count: photos.length,
+            items,
+            photos
+        };
+
+        const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
+        const fileName = "Electronics_Inventory_Backup_" + backupFileStamp(now) + ".json";
+        const result = await saveFileToDevice(blob, fileName, "Electronics Inventory full backup");
+
+        if (result === "cancelled") {
+            setBackupStatus("Backup prepared, but saving/sharing was cancelled.");
+        } else {
+            const sizeMb = (blob.size / (1024 * 1024)).toFixed(blob.size >= 10 * 1024 * 1024 ? 1 : 2);
+            setBackupStatus(`Full backup ready: ${items.length} items, ${photos.length} additional photos, ${sizeMb} MB.`, true);
+        }
+    } catch (error) {
+        console.error("Backup failed:", error);
+        setBackupStatus("Backup failed: " + (error.message || "Unknown error"), false);
+        alert("Could not create the backup: " + (error.message || "Unknown error"));
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+function safeBackupItem(row) {
+    const result = {
+        id: row.id,
+        user_id: currentUser.id,
+        name: String(row.name || ""),
+        section: String(row.section || ""),
+        category: String(row.category || ""),
+        manufacturer: String(row.manufacturer || ""),
+        part_number: String(row.part_number || ""),
+        barcode: String(row.barcode || ""),
+        quantity: Math.max(1, Number.parseInt(row.quantity, 10) || 1),
+        storage_location: String(row.storage_location || ""),
+        condition: String(row.condition || "Unknown"),
+        used_for: String(row.used_for || ""),
+        notes: String(row.notes || ""),
+        photo_path: row.photo_path || null
+    };
+    if (row.created_at) result.created_at = row.created_at;
+    if (row.updated_at) result.updated_at = row.updated_at;
+    return result;
+}
+
+function safeBackupPhoto(row) {
+    const itemId = row.inventory_item_id ?? row.item_id ?? null;
+    const photoPath = row.photo_path ?? row.image_path ?? row.photo_url ?? row.image_url ?? row.photo_data ?? "";
+    if (!itemId || !photoPath) return null;
+
+    const result = {
+        user_id: currentUser.id,
+        inventory_item_id: itemId,
+        photo_path: photoPath,
+        photo_type: String(row.photo_type || row.kind || ""),
+        sort_order: Number.parseInt(row.sort_order, 10) || 1
+    };
+    if (row.id !== undefined && row.id !== null && row.id !== "") result.id = row.id;
+    if (row.created_at) result.created_at = row.created_at;
+    return result;
+}
+
+function chunkRows(rows, size = 8) {
+    const chunks = [];
+    for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size));
+    return chunks;
+}
+
+async function restoreBackupData(backup) {
+    const items = (backup.items || []).map(safeBackupItem).filter(row => row.id && row.name && row.storage_location);
+    const photos = (backup.photos || []).map(safeBackupPhoto).filter(Boolean);
+
+    if (!items.length && (backup.items || []).length) {
+        throw new Error("The backup contains no valid inventory rows that can be restored.");
+    }
+
+    setBackupStatus(`Restoring ${items.length} inventory items…`);
+
+    for (const batch of chunkRows(items, 8)) {
+        const { error } = await db.from("inventory_items").upsert(batch, { onConflict: "id" });
+        if (error) throw error;
+    }
+
+    if (photos.length) {
+        setBackupStatus(`Inventory restored. Checking ${photos.length} saved additional photos…`);
+
+        const { data: existingPhotos, error: existingError } = await db
+            .from("inventory_item_photos")
+            .select("id,inventory_item_id,photo_path,photo_type,sort_order")
+            .eq("user_id", currentUser.id);
+        if (existingError) throw existingError;
+
+        const existingIds = new Set((existingPhotos || []).map(row => row.id).filter(value => value !== undefined && value !== null).map(String));
+        const existingKeys = new Set((existingPhotos || []).map(row => [
+            String(row.inventory_item_id || ""),
+            String(row.photo_type || ""),
+            String(row.sort_order || ""),
+            String(row.photo_path || "")
+        ].join("|")));
+
+        const missingPhotos = photos.filter(row => {
+            if (row.id !== undefined && row.id !== null && existingIds.has(String(row.id))) return false;
+            const key = [String(row.inventory_item_id || ""), String(row.photo_type || ""), String(row.sort_order || ""), String(row.photo_path || "")].join("|");
+            return !existingKeys.has(key);
+        });
+
+        for (const batch of chunkRows(missingPhotos, 5)) {
+            const { error } = await db.from("inventory_item_photos").insert(batch);
+            if (error) throw error;
+        }
+    }
+
+    await loadInventory();
+    return { items: items.length, photos: photos.length };
+}
+
+async function handleRestoreBackupFile(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    try {
+        setBackupStatus("Reading backup file…");
+        const text = await file.text();
+        const backup = JSON.parse(text);
+
+        if (!backup || backup.backup_format !== "electronics-inventory-full-backup" || Number(backup.format_version) !== 1) {
+            throw new Error("That is not a compatible Electronics Inventory full backup file.");
+        }
+        if (!Array.isArray(backup.items) || !Array.isArray(backup.photos)) {
+            throw new Error("The backup file is incomplete or damaged.");
+        }
+
+        const backupDate = backup.created_at ? new Date(backup.created_at).toLocaleString() : "unknown date";
+        const firstConfirm = confirm(
+            "Backup date: " + backupDate + "\n\n" +
+            "Inventory items: " + backup.items.length + "\n" +
+            "Additional photos: " + backup.photos.length + "\n\n" +
+            "Restore this backup into your current account?\n\n" +
+            "Matching saved items will be updated to the backup values. Missing items and photos will be added. Items created after this backup will NOT be deleted."
+        );
+        if (!firstConfirm) {
+            setBackupStatus("Restore cancelled. Nothing was changed.");
+            return;
+        }
+
+        const finalConfirm = confirm(
+            "FINAL CHECK\n\nRestore this backup now?\n\n" +
+            "This can change existing matching inventory records. Your current extra items will remain in the account."
+        );
+        if (!finalConfirm) {
+            setBackupStatus("Restore cancelled. Nothing was changed.");
+            return;
+        }
+
+        const restored = await restoreBackupData(backup);
+        setBackupStatus(`Restore complete: ${restored.items} inventory items checked/restored and ${restored.photos} backup photos checked.`, true);
+        alert("Restore complete. The inventory has been reloaded from the cloud.");
+    } catch (error) {
+        console.error("Restore failed:", error);
+        setBackupStatus("Restore failed: " + (error.message || "Unknown error"), false);
+        alert("Could not restore this backup: " + (error.message || "Unknown error"));
+    }
+}
+
+function csvCell(value) {
+    const text = String(value ?? "").replace(/\r?\n/g, " ");
+    return '"' + text.replace(/"/g, '""') + '"';
+}
+
+async function exportInventoryCsv() {
+    if (!currentUser) {
+        alert("Please sign in first.");
+        return;
+    }
+    if (!inventory.length) {
+        alert("There are no inventory items to export yet.");
+        return;
+    }
+
+    const headers = ["Item","Section","Category","Quantity","Location","Manufacturer","Part Number","Barcode","Condition","What It's Used For","Notes","Date Added","Photo Count"];
+    const rows = inventory.map(item => [
+        item.name, item.section, item.category, item.quantity, item.location,
+        item.manufacturer, item.partNumber, item.barcode, item.condition,
+        item.usedFor, item.notes, item.dateAdded, getItemPhotos(item).length
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const fileName = "Electronics_Inventory_" + backupFileStamp(new Date()) + ".csv";
+    const result = await saveFileToDevice(blob, fileName, "Electronics Inventory CSV export");
+    if (result === "cancelled") setBackupStatus("CSV export prepared, but saving/sharing was cancelled.");
+    else setBackupStatus(`CSV export ready with ${inventory.length} inventory rows. Remember: CSV does not contain the photo files.`, true);
 }
 
 function printInventory(){
