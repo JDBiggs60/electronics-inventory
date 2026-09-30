@@ -481,6 +481,10 @@ button {
 .lookup-panel p, #lookupResult { line-height:1.5; }
 .price-row-button { padding:5px 8px; font-size:12px; margin-top:5px; }
 .lookup-saved-details { margin-top:10px; padding-top:8px; border-top:1px solid #ddd; line-height:1.5; }
+.item-price-status { margin:10px 0 0; font-size:14px; line-height:1.4; color:#475569; }
+.item-price-status.is-searching { color:#1d4ed8; font-weight:700; }
+.item-price-status.is-error { color:#b91c1c; }
+.item-card button:disabled { cursor:wait; opacity:.65; }
 </style>
 </head>
 
@@ -1694,6 +1698,49 @@ let identificationVersion = 0;
 let activeFormLookup = null;
 let missingPriceBatchRunning = false;
 const itemLookupsRunning = new Set();
+const itemPriceLookupStates = new Map();
+
+function priceLookupStateKey(id, ownerId = currentUser?.id) {
+    return JSON.stringify([ownerId || "", String(id)]);
+}
+function setItemPriceLookupState(id, ownerId, phase, message) {
+    const item = inventory.find(entry => String(entry.id) === String(id));
+    itemPriceLookupStates.set(priceLookupStateKey(id, ownerId), { phase, message,
+        signature: item ? JSON.stringify([lookupIdentityKey(item), item.estimatedValue ?? null]) : "" });
+}
+function getItemPriceLookupState(item) {
+    const key = priceLookupStateKey(item.id), state = itemPriceLookupStates.get(key);
+    if (state && state.signature !== JSON.stringify([lookupIdentityKey(item), item.estimatedValue ?? null])) {
+        itemPriceLookupStates.delete(key);
+        return null;
+    }
+    return state;
+}
+function noAcceptedPriceMessage(details) {
+    if (details?.identity && !details.identity.model && !details.identity.barcode) return "Not searched: enter a model/part number or barcode first.";
+    if (details?.identity_status === "conflict") return "Search finished: model conflict. No price was saved.";
+    if (details?.identity_status !== "verified") return "Search finished: the exact model could not be verified. Price remains Unknown.";
+    return "Search finished: no sufficiently supported matching price was accepted. Price remains Unknown.";
+}
+function itemPriceStatusHtml(item) {
+    let state = getItemPriceLookupState(item);
+    if (itemLookupsRunning.has(String(item.id))) state = { phase: "searching", message: "Searching online for a matching price…" };
+    if (!state) {
+        if (item.lookupDetails) state = { phase: "complete", message: lookupPriceApplies(item.lookupDetails, item.estimatedValue) ? "Price found and saved. See the source below." :
+            usableLookupPrice(item.lookupDetails) !== null ? "Lookup completed. Your entered value was kept; see the sourced result below." : noAcceptedPriceMessage(item.lookupDetails) };
+        else if (item.estimatedValue !== null && item.estimatedValue !== undefined) state = { phase: "complete", message: "Manual estimate." };
+        else state = { phase: "idle", message: "Price has not been searched yet." };
+    }
+    return `<div class="item-price-status${state.phase === "searching" ? " is-searching" : state.phase === "error" ? " is-error" : ""}" role="status" aria-live="polite">${escapeHTML(state.message)}</div>`;
+}
+function itemPriceButtonHtml(item, className = "secondary") {
+    const searching = itemLookupsRunning.has(String(item.id));
+    const hasPrice = item.estimatedValue !== null && item.estimatedValue !== undefined;
+    const state = getItemPriceLookupState(item);
+    const retry = !hasPrice && (item.lookupDetails || state?.phase === "error");
+    const label = searching ? "Searching…" : hasPrice ? "Review Price" : retry ? "Try Price Again" : "Find Price";
+    return `<button type="button" class="${escapeHTML(className)}" ${searching ? 'disabled aria-busy="true"' : ""} onclick='event.stopPropagation();findPriceForItemFromButton(${JSON.stringify(item.id)})'>${label}</button>`;
+}
 
 function safeLookupUrl(value) {
     try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password ? url.href : ""; }
@@ -1722,8 +1769,11 @@ function lookupPriceApplies(details, value) {
 function lookupSummaryHtml(details, value) {
     if (!details || typeof details !== "object") return "";
     const out = [];
+    // The extracted narrative can claim a price even when validation rejected it.
+    // Report the validated fields instead, including for previously saved results.
     if (details.identity_status === "conflict") out.push("<b>Model conflict—review before using this item.</b>");
-    if (details.explanation) out.push(escapeHTML(String(details.explanation)));
+    else if (details.identity_status === "verified") out.push("Exact model verified.");
+    else out.push("The exact model could not be verified.");
     const modelSource = safeLookupUrl(details.identity_source_url);
     if (modelSource) out.push(`<a href="${escapeHTML(modelSource)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Model source</a>`);
     if (details.identity_status === "conflict" && details.matched_model) out.push("Source model: " + escapeHTML(details.matched_model));
@@ -1735,7 +1785,7 @@ function lookupSummaryHtml(details, value) {
         if (p.pack_quantity > 1) out.push("Source pack: " + Number(p.pack_quantity) + " pieces for " + formatUsd(p.listing_total_usd) + ".");
         if (url) out.push(`<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${escapeHTML(p.source_title || "Price source")}</a>`);
         if (p.condition_note) out.push(escapeHTML(p.condition_note));
-    } else if (!details.price?.found) out.push("Price: Unknown. No sufficiently supported matching price was found.");
+    } else out.push(escapeHTML(noAcceptedPriceMessage(details)));
     for (const fact of (Array.isArray(details.facts) ? details.facts : []).slice(0, 6)) {
         const url = safeLookupUrl(fact.source_url);
         out.push(escapeHTML(fact.field === "used_for" ? "Verified use: " : "Verified specifications: ") + escapeHTML(String(fact.value || "")) +
@@ -1817,6 +1867,7 @@ async function findPriceForItem(id) {
     // Manual or already-saved prices are refreshed only through Edit, with review.
     if (item.estimatedValue !== null && item.estimatedValue !== undefined) { startEditItem(id); return false; }
     itemLookupsRunning.add(String(id));
+    setItemPriceLookupState(id, userId, "searching", "Searching online for a matching price…");
     document.getElementById("priceLookupStatus").textContent = "Looking up " + item.name + "…";
     renderInventory();
     try {
@@ -1832,11 +1883,16 @@ async function findPriceForItem(id) {
         const { data: updated, error } = await query.select("id");
         if (error) throw error;
         await loadInventory();
-        document.getElementById("priceLookupStatus").textContent = !updated?.length ? "The item changed while looking it up; the result was not saved. Review it before retrying." :
-            value === null ? item.name + ": no reliable matching price found. Review its model number and lookup details." : item.name + ": " + formatUsd(value) + " each (" + priceBasisLabel(details.price.basis).toLowerCase() + ").";
+        if (currentUser?.id !== userId) return false;
+        const message = !updated?.length ? "The item changed while looking it up; the result was not saved. Review it before retrying." :
+            value === null ? noAcceptedPriceMessage(details) : "Price found and saved: " + formatUsd(value) + " each (" + priceBasisLabel(details.price.basis).toLowerCase() + ").";
+        setItemPriceLookupState(id, userId, !updated?.length ? "changed" : value === null ? "unknown" : "found", message);
+        document.getElementById("priceLookupStatus").textContent = item.name + ": " + message;
         return Boolean(updated?.length && value !== null);
     } catch (error) {
-        document.getElementById("priceLookupStatus").textContent = "Could not price " + item.name + ": " + error.message;
+        const message = "Lookup failed: " + error.message + " Review this item before retrying.";
+        setItemPriceLookupState(id, userId, "error", message);
+        if (currentUser?.id === userId) document.getElementById("priceLookupStatus").textContent = item.name + ": " + message;
         throw error;
     } finally { itemLookupsRunning.delete(String(id)); renderInventory(); }
 }
@@ -1873,7 +1929,7 @@ function priceCellHtml(item) {
         return formatUsd(item.estimatedValue) + `<div class="lookup-hint">${escapeHTML(sourced ? priceBasisLabel(details.price.basis) : "Manual estimate")}` +
             (url ? ` · <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Source</a>` : "") + "</div>";
     }
-    return "Unknown" + `<br><button type="button" class="secondary price-row-button" ${itemLookupsRunning.has(String(item.id)) ? "disabled" : ""} onclick='event.stopPropagation();findPriceForItemFromButton(${JSON.stringify(item.id)})'>${itemLookupsRunning.has(String(item.id)) ? "Searching…" : "Find Price"}</button>`;
+    return "Unknown<br>" + itemPriceButtonHtml(item, "secondary price-row-button") + itemPriceStatusHtml(item);
 }
 
 for (const id of ["itemName","manufacturer","partNumber","barcode","condition"]) {
@@ -2683,7 +2739,7 @@ function renderInventory() {
 
                     <div class="item-info">
                         <b>Quantity:</b> ${item.quantity}
-                        ${item.estimatedValue !== null ? `<br><b>Estimated Value Each:</b> ${formatUsd(item.estimatedValue)}<br><b>Total Estimated Value:</b> ${formatUsd(itemTotalValue(item))}` : ""}
+                        ${item.estimatedValue !== null ? `<br><b>Estimated Value Each:</b> ${formatUsd(item.estimatedValue)}<br><b>Total Estimated Value:</b> ${formatUsd(itemTotalValue(item))}` : "<br><b>Estimated Value Each:</b> Unknown"}
                         <br>
                         <b>Location:</b> ${escapeHTML(item.location)}
 
@@ -2714,9 +2770,10 @@ function renderInventory() {
                         <b>Added:</b> ${escapeHTML(item.dateAdded)}
                     </div>
 
+                    ${itemPriceStatusHtml(item)}
                     ${item.lookupDetails ? `<div class="lookup-saved-details">${lookupSummaryHtml(item.lookupDetails,item.estimatedValue)}</div>` : ""}
                     <div class="buttons">
-                        <button class="secondary" onclick='findPriceForItemFromButton(${JSON.stringify(item.id)})'>${item.estimatedValue === null ? "Find Price" : "Review Price"}</button>
+                        ${itemPriceButtonHtml(item)}
                         <button class="secondary" onclick='startEditItem(${JSON.stringify(item.id)})'>Edit Item</button>
                         <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
                         <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
