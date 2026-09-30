@@ -477,6 +477,10 @@ button {
 .duplicate-dialog .buttons { display: flex; flex-direction: column; }
 .duplicate-dialog .buttons button { width: 100%; margin: 0; }
 
+.lookup-panel { margin:18px 0; padding:14px; border:1px solid #ccd6e3; border-radius:10px; background:#f8fafc; }
+.lookup-panel p, #lookupResult { line-height:1.5; }
+.price-row-button { padding:5px 8px; font-size:12px; margin-top:5px; }
+.lookup-saved-details { margin-top:10px; padding-top:8px; border-top:1px solid #ddd; line-height:1.5; }
 </style>
 </head>
 
@@ -745,7 +749,7 @@ button {
             <div>
                 <label for="estimatedValue">Estimated Value Per Piece (USD)</label>
                 <input id="estimatedValue" type="number" min="0" max="99999999.99" step="0.01" inputmode="decimal" placeholder="Leave blank if unknown">
-                <p class="lookup-hint">Enter your own estimate for one piece. This is not an automatic price lookup.</p>
+                <p class="lookup-hint">Enter a value or let Internet lookup find a sourced price. A replacement price is labeled separately from a used asking or sold price.</p>
             </div>
 
             <div>
@@ -781,6 +785,13 @@ button {
 
         </div>
 
+        <div class="lookup-panel">
+            <label style="display:flex;gap:10px;align-items:center"><input id="autoLookupPrice" type="checkbox" checked style="width:auto">Verify model and find a price after photo identification</label>
+            <p class="lookup-hint">Uses your existing OpenAI account. Maximum 20 lookups per account per day; unmatched prices remain unknown.</p>
+            <button type="button" id="verifyPriceButton" class="secondary" onclick="verifyAndPriceForm()">Verify Model &amp; Find Price</button>
+            <p id="lookupStatus" role="status">Review the model and condition before saving.</p>
+            <div id="lookupResult" hidden></div>
+        </div>
         <div id="duplicateWarning" class="warning"></div>
 
         <div class="buttons">
@@ -798,6 +809,8 @@ button {
     <div class="panel">
 
         <h2>My Electronics</h2>
+        <button type="button" id="findMissingPricesButton" class="secondary" onclick="findMissingPrices()">Find Missing Prices</button>
+        <p id="priceLookupStatus" class="lookup-hint" role="status">Checks up to 10 unpriced items in the current filtered list. New replacement prices are labeled.</p>
 
         <div class="inventory-tools">
             <input
@@ -1083,6 +1096,9 @@ async function savePileItems() {
 
 async function identifyElectronics(imageData) {
     if (!imageData) return;
+    invalidateFormLookup();
+    const requestVersion = identificationVersion;
+    const requestUserId = currentUser?.id;
 
     setSyncStatus("AI is identifying this item…");
 
@@ -1092,6 +1108,7 @@ async function identifyElectronics(imageData) {
         });
 
         if (error) throw error;
+        if (requestVersion !== identificationVersion || requestUserId !== currentUser?.id) return;
 
         // The Edge Function returns the AI result inside data.identification.
         // Keep the older fallbacks too, so this remains compatible if the
@@ -1215,7 +1232,9 @@ async function identifyElectronics(imageData) {
         }
 
         setSyncStatus("AI identification complete — review the details before saving.");
+        if (document.getElementById("autoLookupPrice").checked) await verifyAndPriceForm(true);
     } catch (error) {
+        if (requestVersion !== identificationVersion || requestUserId !== currentUser?.id) return;
         console.error("AI identification failed:", error);
         setSyncStatus("AI identification failed: " + (error.message || "Unknown error"), false);
     }
@@ -1669,6 +1688,203 @@ async function signOut() {
     await db.auth.signOut();
 }
 
+let currentLookupDetails = null;
+let formLookupVersion = 0;
+let identificationVersion = 0;
+let activeFormLookup = null;
+let missingPriceBatchRunning = false;
+const itemLookupsRunning = new Set();
+
+function safeLookupUrl(value) {
+    try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password ? url.href : ""; }
+    catch { return ""; }
+}
+function priceBasisLabel(basis) {
+    return ({ new_replacement: "New replacement price", used_asking: "Used asking price", used_sold: "Used sold price",
+        for_parts_asking: "For-parts asking price", for_parts_sold: "For-parts sold price" })[basis] || "Manual estimate";
+}
+function identityForLookup(item) {
+    return { name: item.name || "", manufacturer: item.manufacturer || "", partNumber: item.partNumber || "",
+        barcode: item.barcode || "", condition: item.condition || "Unknown" };
+}
+function currentFormIdentity() {
+    return { name: document.getElementById("itemName").value.trim(), manufacturer: document.getElementById("manufacturer").value.trim(),
+        partNumber: document.getElementById("partNumber").value.trim(), barcode: document.getElementById("barcode").value.trim(),
+        condition: document.getElementById("condition").value };
+}
+function lookupIdentityKey(item) {
+    return JSON.stringify([normalize(item.name), normalize(item.manufacturer), normalize(item.partNumber || item.model), normalize(item.barcode), item.condition || "Unknown"]);
+}
+function lookupPriceApplies(details, value) {
+    return details?.identity_status === "verified" && details?.price_applied === true && details?.price?.found === true &&
+        value !== null && value !== undefined && value !== "" && Number(value) === Number(details.price.unit_price_usd);
+}
+function lookupSummaryHtml(details, value) {
+    if (!details || typeof details !== "object") return "";
+    const out = [];
+    if (details.identity_status === "conflict") out.push("<b>Model conflict—review before using this item.</b>");
+    if (details.explanation) out.push(escapeHTML(String(details.explanation)));
+    const modelSource = safeLookupUrl(details.identity_source_url);
+    if (modelSource) out.push(`<a href="${escapeHTML(modelSource)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Model source</a>`);
+    if (details.identity_status === "conflict" && details.matched_model) out.push("Source model: " + escapeHTML(details.matched_model));
+    if (usableLookupPrice(details) !== null) {
+        const p = details.price, url = safeLookupUrl(p.source_url);
+        out.push("<b>" + escapeHTML(priceBasisLabel(p.basis)) + ":</b> " + formatUsd(p.unit_price_usd) + " each.");
+        if (!lookupPriceApplies(details, value)) out.push("Lookup result only; your entered value was kept.");
+        if (p.basis === "new_replacement" && details.identity?.condition !== "New") out.push("This is a new replacement price; it is not an estimated used selling price.");
+        if (p.pack_quantity > 1) out.push("Source pack: " + Number(p.pack_quantity) + " pieces for " + formatUsd(p.listing_total_usd) + ".");
+        if (url) out.push(`<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${escapeHTML(p.source_title || "Price source")}</a>`);
+        if (p.condition_note) out.push(escapeHTML(p.condition_note));
+    } else if (!details.price?.found) out.push("Price: Unknown. No sufficiently supported matching price was found.");
+    for (const fact of (Array.isArray(details.facts) ? details.facts : []).slice(0, 6)) {
+        const url = safeLookupUrl(fact.source_url);
+        out.push(escapeHTML(fact.field === "used_for" ? "Verified use: " : "Verified specifications: ") + escapeHTML(String(fact.value || "")) +
+            (url ? ` <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Source</a>` : ""));
+    }
+    const checked = new Date(details.checked_at);
+    if (Number.isFinite(checked.getTime())) out.push("Checked " + escapeHTML(checked.toLocaleString()) + ". Prices can change.");
+    return out.join("<br>");
+}
+function renderFormLookup() {
+    const box = document.getElementById("lookupResult");
+    box.innerHTML = lookupSummaryHtml(currentLookupDetails, document.getElementById("estimatedValue").value);
+    box.hidden = !box.innerHTML;
+}
+function invalidateFormLookup() {
+    if (lookupPriceApplies(currentLookupDetails, document.getElementById("estimatedValue").value)) document.getElementById("estimatedValue").value = "";
+    currentLookupDetails = null;
+    formLookupVersion++;
+    identificationVersion++;
+    activeFormLookup = null;
+    document.getElementById("verifyPriceButton").disabled = false;
+    renderFormLookup();
+}
+async function requestElectronicsLookup(item) {
+    const { data, error } = await db.functions.invoke("lookup-electronics", { body: { item: identityForLookup(item) } });
+    if (error) {
+        let message = error.message || "Internet lookup failed.";
+        try { const body = await error.context?.json(); if (body?.error) message = body.error; } catch (_) {}
+        const failure = new Error(message); failure.status = error.context?.status; throw failure;
+    }
+    if (data?.success !== true || !data.lookup || data.lookup.format_version !== 1) throw new Error(data?.error || "The lookup returned no usable result. Check that lookup-electronics is deployed.");
+    return data.lookup;
+}
+function usableLookupPrice(details) {
+    const value = details?.price?.unit_price_usd;
+    return details?.identity_status === "verified" && details?.price?.found === true && safeLookupUrl(details.price.source_url) &&
+        typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 99999999.99 ? value : null;
+}
+async function verifyAndPriceForm(automatic = false) {
+    if (!currentUser || activeFormLookup !== null) return;
+    const item = currentFormIdentity();
+    const version = formLookupVersion, userId = currentUser.id, key = lookupIdentityKey(item);
+    const button = document.getElementById("verifyPriceButton");
+    activeFormLookup = version; button.disabled = true;
+    document.getElementById("lookupStatus").textContent = "Verifying the model and looking for a sourced price…";
+    const originalValue = document.getElementById("estimatedValue").value;
+    try {
+        const details = await requestElectronicsLookup(item);
+        if (currentUser?.id !== userId || version !== formLookupVersion || key !== lookupIdentityKey(currentFormIdentity())) return;
+        currentLookupDetails = { ...details, price_applied: false };
+        const price = usableLookupPrice(details), field = document.getElementById("estimatedValue");
+        // Never replace a value entered while the lookup was running.
+        if (price !== null && field.value === originalValue && originalValue === "") {
+            field.value = price.toFixed(2); currentLookupDetails.price_applied = true;
+        }
+        if (details.identity_status === "verified") {
+            if (!document.getElementById("manufacturer").value && details.matched_manufacturer) document.getElementById("manufacturer").value = details.matched_manufacturer;
+            if (!document.getElementById("usedFor").value) {
+                const use = (Array.isArray(details.facts) ? details.facts : []).find(f => f.field === "used_for");
+                if (use) document.getElementById("usedFor").value = use.value;
+            }
+        }
+        renderFormLookup();
+        document.getElementById("lookupStatus").textContent = details.identity_status === "conflict" ? "Model conflict found. Review the source details; no price was filled." :
+            price !== null ? (currentLookupDetails.price_applied ? "Sourced price filled. Review it, then save the item." : "A sourced price was found; your existing value was kept.") : "Lookup complete. No reliable matching price was found; your value was kept.";
+    } catch (error) {
+        if (currentUser?.id !== userId || version !== formLookupVersion) return;
+        document.getElementById("lookupStatus").textContent = (automatic ? "Photo identification finished, but Internet lookup failed: " : "Internet lookup failed: ") + error.message;
+        setSyncStatus("Internet lookup did not finish. Inventory and saved prices were not changed.", false);
+    } finally {
+        if (activeFormLookup === version) { activeFormLookup = null; button.disabled = false; }
+    }
+}
+async function findPriceForItem(id) {
+    if (!currentUser || itemLookupsRunning.has(String(id))) return false;
+    const userId = currentUser.id;
+    const item = inventory.find(entry => String(entry.id) === String(id));
+    if (!item) return false;
+    // Manual or already-saved prices are refreshed only through Edit, with review.
+    if (item.estimatedValue !== null && item.estimatedValue !== undefined) { startEditItem(id); return false; }
+    itemLookupsRunning.add(String(id));
+    document.getElementById("priceLookupStatus").textContent = "Looking up " + item.name + "…";
+    renderInventory();
+    try {
+        const details = await requestElectronicsLookup(identityForLookup(item));
+        if (currentUser?.id !== userId) return false;
+        const value = usableLookupPrice(details);
+        const payload = { lookup_details: { ...details, price_applied: value !== null }, updated_at: new Date().toISOString() };
+        if (value !== null) payload.estimated_value = value;
+        // Only write if the price is still unknown and the identity/condition have not changed.
+        let query = db.from("inventory_items").update(payload).eq("id", item.id).eq("user_id", userId).is("estimated_value", null);
+        const fields = item.lookupMatchFields || { name: item.name, manufacturer: item.manufacturer, part_number: item.partNumber, barcode: item.barcode, condition: item.condition };
+        for (const [field, v] of Object.entries(fields)) query = v === null || v === undefined ? query.is(field, null) : query.eq(field, v);
+        const { data: updated, error } = await query.select("id");
+        if (error) throw error;
+        await loadInventory();
+        document.getElementById("priceLookupStatus").textContent = !updated?.length ? "The item changed while looking it up; the result was not saved. Review it before retrying." :
+            value === null ? item.name + ": no reliable matching price found. Review its model number and lookup details." : item.name + ": " + formatUsd(value) + " each (" + priceBasisLabel(details.price.basis).toLowerCase() + ").";
+        return Boolean(updated?.length && value !== null);
+    } catch (error) {
+        document.getElementById("priceLookupStatus").textContent = "Could not price " + item.name + ": " + error.message;
+        throw error;
+    } finally { itemLookupsRunning.delete(String(id)); renderInventory(); }
+}
+async function findPriceForItemFromButton(id) {
+    try { await findPriceForItem(id); } catch (_) { /* The status message explains the failure. */ }
+}
+async function findMissingPrices() {
+    if (!currentUser || missingPriceBatchRunning) return;
+    const ownerId = currentUser.id;
+    const candidates = getFilteredInventory().filter(item => item.estimatedValue === null && (item.partNumber || item.barcode) && !itemLookupsRunning.has(String(item.id))).slice(0, 10);
+    if (!candidates.length) { document.getElementById("priceLookupStatus").textContent = "No unpriced items with a model/part number or barcode are in the current filtered list."; return; }
+    if (!confirm("Search the Internet for prices for " + candidates.length + " items in the current filtered list? This uses your existing OpenAI account. The app allows 20 lookups per account per day. Unmatched items stay Unknown; replacement prices are labeled.")) return;
+    missingPriceBatchRunning = true;
+    document.getElementById("findMissingPricesButton").disabled = true;
+    let found = 0, attempted = 0, failure = "";
+    try {
+        for (const item of candidates) {
+            if (currentUser?.id !== ownerId) break;
+            attempted++;
+            try { if (await findPriceForItem(item.id)) found++; }
+            catch (error) { failure = error.message; break; }
+        }
+    } finally {
+        missingPriceBatchRunning = false;
+        document.getElementById("findMissingPricesButton").disabled = false;
+        document.getElementById("priceLookupStatus").textContent = `Checked ${attempted} items; filled ${found} prices.` + (failure ? " Stopped: " + failure : " Unmatched items remain Unknown.");
+    }
+}
+function priceCellHtml(item) {
+    const details = item.lookupDetails;
+    if (item.estimatedValue !== null && item.estimatedValue !== undefined) {
+        const sourced = lookupPriceApplies(details,item.estimatedValue);
+        const url = sourced ? safeLookupUrl(details.price.source_url) : "";
+        return formatUsd(item.estimatedValue) + `<div class="lookup-hint">${escapeHTML(sourced ? priceBasisLabel(details.price.basis) : "Manual estimate")}` +
+            (url ? ` · <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Source</a>` : "") + "</div>";
+    }
+    return "Unknown" + `<br><button type="button" class="secondary price-row-button" ${itemLookupsRunning.has(String(item.id)) ? "disabled" : ""} onclick='event.stopPropagation();findPriceForItemFromButton(${JSON.stringify(item.id)})'>${itemLookupsRunning.has(String(item.id)) ? "Searching…" : "Find Price"}</button>`;
+}
+
+for (const id of ["itemName","manufacturer","partNumber","barcode","condition"]) {
+    document.getElementById(id).addEventListener("input", invalidateFormLookup);
+}
+document.getElementById("estimatedValue").addEventListener("input", () => {
+    if (currentLookupDetails) currentLookupDetails = { ...currentLookupDetails, price_applied: false };
+    renderFormLookup();
+});
+
+
 function rowToItem(row) {
     return {
         id: row.id,
@@ -1680,8 +1896,10 @@ function rowToItem(row) {
         barcode: row.barcode || "",
         quantity: Number(row.quantity || 1),
         estimatedValue: savedUnitValue(row),
+        lookupDetails: row.lookup_details || null,
+        lookupMatchFields: { name: row.name ?? null, manufacturer: row.manufacturer ?? null, part_number: row.part_number ?? null, barcode: row.barcode ?? null, condition: row.condition ?? null },
         location: row.storage_location || "",
-        condition: row.condition || "New",
+        condition: row.condition || "Unknown",
         usedFor: row.used_for || "",
         notes: row.notes || "",
         photo: row.photo_path || "",
@@ -1812,7 +2030,11 @@ function startEditItem(id) {
     document.getElementById("partNumber").value = item.partNumber || "";
     document.getElementById("barcode").value = item.barcode || "";
     document.getElementById("quantity").value = Math.max(1, Number(item.quantity || 1));
+    invalidateFormLookup();
     document.getElementById("estimatedValue").value = item.estimatedValue ?? "";
+    currentLookupDetails = item.lookupDetails || null;
+    renderFormLookup();
+    document.getElementById("lookupStatus").textContent = "Review the existing lookup details or run a fresh lookup.";
     document.getElementById("location").value = item.location || "";
     document.getElementById("condition").value = item.condition || "Unknown";
     document.getElementById("usedFor").value = item.usedFor || "";
@@ -1859,6 +2081,7 @@ function startEditItem(id) {
 let itemSaveInProgress = false;
 
 async function saveItem() {
+    if (activeFormLookup !== null) { alert("Please wait for the Internet lookup to finish, or choose Clear to cancel this entry."); return; }
     if (itemSaveInProgress) return;
     itemSaveInProgress = true;
     const buttons = ["saveItemButton", "clearFormButton"].map(id => document.getElementById(id));
@@ -2008,6 +2231,8 @@ async function saveItemInternal() {
     const condition = document.getElementById("condition").value;
     const usedFor = document.getElementById("usedFor").value.trim();
     const notes = document.getElementById("notes").value.trim();
+    let lookupDetails = currentLookupDetails;
+    if (lookupDetails && !lookupPriceApplies(lookupDetails, document.getElementById("estimatedValue").value)) lookupDetails = { ...lookupDetails, price_applied: false };
     let estimatedValue;
     try { estimatedValue = valueFromInput(document.getElementById("estimatedValue").value); }
     catch (error) { alert(error.message); return; }
@@ -2074,6 +2299,7 @@ async function saveItemInternal() {
                 barcode,
                 quantity,
                 estimated_value: estimatedValue,
+                lookup_details: lookupDetails,
                 storage_location: location,
                 condition,
                 used_for: usedFor,
@@ -2117,6 +2343,7 @@ async function saveItemInternal() {
             barcode,
             quantity,
             estimated_value: estimatedValue,
+            lookup_details: lookupDetails,
             storage_location: location,
             condition,
             used_for: usedFor,
@@ -2212,6 +2439,8 @@ async function removeOne(id) {
 }
 
 function clearForm() {
+    invalidateFormLookup();
+    document.getElementById("lookupStatus").textContent = "Review the model and condition before saving.";
     stopBarcodeScanner();
     editingItemId = null;
     const saveButton = document.getElementById("saveItemButton");
@@ -2420,7 +2649,7 @@ function renderInventory() {
                     <td>${escapeHTML(item.section)}</td>
                     <td>${escapeHTML(item.category)}</td>
                     <td>${Number(item.quantity || 0)}</td>
-                    <td>${item.estimatedValue === null ? "Unknown" : formatUsd(item.estimatedValue)}</td>
+                    <td>${priceCellHtml(item)}</td>
                     <td>${itemTotalValue(item) === null ? "Unknown" : formatUsd(itemTotalValue(item))}</td>
                     <td>${escapeHTML(item.location)}</td>
                     <td>${escapeHTML(item.manufacturer)}</td>
@@ -2485,7 +2714,9 @@ function renderInventory() {
                         <b>Added:</b> ${escapeHTML(item.dateAdded)}
                     </div>
 
+                    ${item.lookupDetails ? `<div class="lookup-saved-details">${lookupSummaryHtml(item.lookupDetails,item.estimatedValue)}</div>` : ""}
                     <div class="buttons">
+                        <button class="secondary" onclick='findPriceForItemFromButton(${JSON.stringify(item.id)})'>${item.estimatedValue === null ? "Find Price" : "Review Price"}</button>
                         <button class="secondary" onclick='startEditItem(${JSON.stringify(item.id)})'>Edit Item</button>
                         <button class="secondary" onclick='addOne(${JSON.stringify(item.id)})'>+1</button>
                         <button class="secondary" onclick='removeOne(${JSON.stringify(item.id)})'>-1</button>
@@ -2818,6 +3049,10 @@ function safeBackupItem(row) {
         notes: String(row.notes || ""),
         photo_path: row.photo_path || null
     };
+    if (Object.prototype.hasOwnProperty.call(row, "lookup_details")) {
+        if (row.lookup_details !== null && (typeof row.lookup_details !== "object" || Array.isArray(row.lookup_details))) throw new Error("Invalid lookup details in backup.");
+        result.lookup_details = row.lookup_details;
+    }
     // Preserve new values; an older backup without this field must not erase an existing value.
     if (Object.prototype.hasOwnProperty.call(row, "estimated_value")) {
         result.estimated_value = row.estimated_value === null || row.estimated_value === ""
@@ -2964,13 +3199,16 @@ async function exportInventoryCsv() {
         return;
     }
 
-    const headers = ["Item","Section","Category","Quantity","Location","Manufacturer","Part Number","Barcode","Condition","What It's Used For","Notes","Date Added","Photo Count","Estimated Value Each (USD)","Total Estimated Value (USD)"];
+    const headers = ["Item","Section","Category","Quantity","Location","Manufacturer","Part Number","Barcode","Condition","What It's Used For","Notes","Date Added","Photo Count","Estimated Value Each (USD)","Total Estimated Value (USD)","Price Basis","Price Source","Price Checked"];
     const rows = inventory.map(item => [
         item.name, item.section, item.category, item.quantity, item.location,
         item.manufacturer, item.partNumber, item.barcode, item.condition,
         item.usedFor, item.notes, item.dateAdded, getItemPhotos(item).length,
         item.estimatedValue === null ? "" : Number(item.estimatedValue).toFixed(2),
-        itemTotalValue(item) === null ? "" : itemTotalValue(item).toFixed(2)
+        itemTotalValue(item) === null ? "" : itemTotalValue(item).toFixed(2),
+        lookupPriceApplies(item.lookupDetails,item.estimatedValue) ? priceBasisLabel(item.lookupDetails.price.basis) : "Manual estimate / Unknown",
+        lookupPriceApplies(item.lookupDetails,item.estimatedValue) ? safeLookupUrl(item.lookupDetails.price.source_url) : "",
+        item.lookupDetails?.checked_at || ""
     ]);
     const csv = [headers, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
