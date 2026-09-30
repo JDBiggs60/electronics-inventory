@@ -488,6 +488,31 @@ button {
 .custom-label-preview { width:min(100%,320px);aspect-ratio:4/3;background:#fff;border:1px dashed #64748b;border-radius:6px;margin:12px 0;display:flex;align-items:center;justify-content:center;white-space:pre-wrap;overflow:hidden;padding:8px;text-align:center; }
 .custom-label-preview img { width:100%;height:100%;object-fit:contain; }
 .custom-label-help { font-size:13px;color:#475569;line-height:1.45; }
+
+/* Colorful home dashboard and focused app sections */
+.app-view[hidden], #homeDashboard[hidden] { display:none !important; }
+.home-intro { text-align:center; padding:22px 14px 10px; }
+.home-intro h2 { margin:0; color:#102a43; font-size:clamp(23px,4vw,32px); }
+.home-intro p { margin:8px auto 0; max-width:620px; color:#526477; line-height:1.5; }
+.home-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:12px 0 22px; }
+.home-card { display:flex; min-height:150px; flex-direction:column; align-items:flex-start; justify-content:flex-start; text-align:left; gap:7px; padding:17px; border-radius:16px; color:#fff; box-shadow:0 5px 14px rgba(20,45,75,.14); transition:transform .14s ease,box-shadow .14s ease; white-space:normal; }
+.home-card:hover { transform:translateY(-2px); box-shadow:0 9px 19px rgba(20,45,75,.20); }
+.home-card:focus-visible,.home-back:focus-visible { outline:3px solid #fbbf24; outline-offset:3px; }
+.home-card .home-icon { display:grid; place-items:center; width:48px; height:48px; border-radius:13px; background:rgba(255,255,255,.2); font-size:27px; }
+.home-card strong { font-size:18px; line-height:1.2; }
+.home-card small { color:rgba(255,255,255,.94); font-size:13px; font-weight:400; line-height:1.35; }
+.home-card.add { background:linear-gradient(135deg,#075985,#0ea5e9); }
+.home-card.inventory { background:linear-gradient(135deg,#4338ca,#818cf8); }
+.home-card.locations { background:linear-gradient(135deg,#047857,#34d399); }
+.home-card.print { background:linear-gradient(135deg,#b45309,#f59e0b); }
+.home-card.backup { background:linear-gradient(135deg,#7e22ce,#c084fc); }
+.view-heading { display:flex; align-items:center; gap:13px; margin:2px 0 15px; padding:11px 0; }
+.view-heading h2 { margin:0; color:#102a43; font-size:23px; }
+.home-back { flex:0 0 auto; background:#e0f2fe; color:#075985; font-weight:700; }
+.app-view > .panel { scroll-margin-top:12px; }
+@media(min-width:700px) { .home-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; } .home-card { min-height:166px; padding:20px; } }
+@media(max-width:420px) { .home-grid { gap:10px; } .home-card { min-height:142px; padding:13px; } .home-card strong { font-size:16px; } .home-card small { font-size:12px; } }
+
 </style>
 </head>
 
@@ -569,6 +594,7 @@ button {
 
 <div class="container">
 
+    <section id="homeDashboard" aria-labelledby="homeWelcome">
     <div class="stats">
         <div class="stat">
             <strong id="uniqueCount">0</strong>
@@ -586,6 +612,36 @@ button {
         </div>
     </div>
 
+    <div class="home-intro">
+        <h2 id="homeWelcome">What would you like to do?</h2>
+        <p>Your parts, locations, prices, and labels—ready when you need them.</p>
+    </div>
+    <div class="home-grid" aria-label="App sections">
+        <button type="button" class="home-card add" onclick="showAppView('add')">
+            <span class="home-icon" aria-hidden="true">📷</span><strong>Add / Identify</strong>
+            <small>Photograph one part or a pile, scan a barcode, and save it.</small>
+        </button>
+        <button type="button" class="home-card inventory" onclick="showAppView('inventory')">
+            <span class="home-icon" aria-hidden="true">🔎</span><strong>My Inventory</strong>
+            <small>Search your parts, browse cards or list, and check prices.</small>
+        </button>
+        <button type="button" class="home-card locations" onclick="showAppView('locations')">
+            <span class="home-icon" aria-hidden="true">🗄️</span><strong>Storage Locations</strong>
+            <small>Find what is stored in each cabinet, drawer, box, or bin.</small>
+        </button>
+        <button type="button" class="home-card print" onclick="showAppView('print')">
+            <span class="home-icon" aria-hidden="true">🏷️</span><strong>Labels &amp; Print</strong>
+            <small>Print item labels, custom labels, and measurement grids.</small>
+        </button>
+        <button type="button" class="home-card backup" onclick="showAppView('backup')">
+            <span class="home-icon" aria-hidden="true">💾</span><strong>Backup &amp; Export</strong>
+            <small>Download or restore a full backup, or export a spreadsheet.</small>
+        </button>
+    </div>
+    </section>
+
+    <section id="viewAdd" class="app-view" hidden aria-label="Add and identify parts">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>Add / Identify</h2></div>
     <div class="panel" id="pilePanel">
         <h2>Identify a Pile of Parts</h2>
         <p>Spread parts apart so each is visible. Photograph the pile, check the suggested items, then choose what to save.</p>
@@ -812,6 +868,10 @@ button {
 
     </div>
 
+    </section>
+
+    <section id="viewInventory" class="app-view" hidden aria-label="My inventory">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>My Inventory</h2></div>
     <div class="panel">
 
         <h2>My Electronics</h2>
@@ -879,6 +939,10 @@ button {
 
     </div>
 
+    </section>
+
+    <section id="viewLocations" class="app-view" hidden aria-label="Storage locations">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>Storage Locations</h2></div>
     <div class="panel">
         <h2>Storage Locations</h2>
         <p class="lookup-hint">Built automatically from the locations already used in your inventory. Click a location to show its contents.</p>
@@ -888,6 +952,10 @@ button {
 
 
 
+    </section>
+
+    <section id="viewBackup" class="app-view" hidden aria-label="Backup and export">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>Backup &amp; Export</h2></div>
     <div class="panel backup-panel">
         <h2>Backup &amp; Restore</h2>
         <p class="backup-note">Download a full safety copy of your inventory, including saved photos. Keep at least one backup somewhere outside this app, such as your computer, iCloud Drive, Google Drive, or a USB drive.</p>
@@ -900,6 +968,10 @@ button {
         <div id="backupStatus" class="backup-status">A full backup includes the inventory records and all saved item photos. CSV is a readable spreadsheet copy, not a complete photo backup.</div>
     </div>
 
+    </section>
+
+    <section id="viewPrint" class="app-view" hidden aria-label="Labels and printing">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>Labels &amp; Print</h2></div>
     <div class="panel measurement-panel">
         <h2>Printable Measurement Grid</h2>
         <p>Print an inch grid or a metric grid for photographing and measuring parts. Print at 100% / Actual Size.</p>
@@ -921,6 +993,7 @@ button {
         </div>
         <p id="customLabelStatus" class="lookup-hint" role="status" aria-live="polite"></p>
     </div>
+    </section>
 
 </div>
 </div>
@@ -1637,6 +1710,24 @@ function showApp() {
     document.getElementById("appRoot").classList.remove("app-hidden");
 }
 
+function showAppView(view, options = {}) {
+    const validViews = {
+        add: "viewAdd",
+        inventory: "viewInventory",
+        locations: "viewLocations",
+        backup: "viewBackup",
+        print: "viewPrint"
+    };
+    const dashboard = document.getElementById("homeDashboard");
+    const isHome = !validViews[view];
+    if (dashboard) dashboard.hidden = !isHome;
+    Object.values(validViews).forEach(id => {
+        const section = document.getElementById(id);
+        if (section) section.hidden = id !== validViews[view];
+    });
+    if (options.scroll !== false) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function togglePasswordVisibility() {
  const p=document.getElementById("authPassword"),b=document.getElementById("passwordEyeButton");
  const show=p.type==="password"; p.type=show?"text":"password"; b.textContent=show?"🙈":"👁";
@@ -2089,6 +2180,7 @@ function findDuplicate(name, partNumber, barcode, manufacturer = "", excludeId =
 }
 
 function startEditItem(id) {
+    showAppView("add");
     const item = inventory.find(entry => String(entry.id) === String(id));
     if (!item) {
         alert("That item is no longer in the inventory.");
@@ -2591,11 +2683,12 @@ function renderStorageLocations(){
  }).join("");
 }
 function viewStorageLocation(location){
+ showAppView("inventory", { scroll: false });
  const filter=document.getElementById("filterLocation");if(!filter)return;
  refreshInventoryFilters();filter.value=location;renderInventory();
  document.getElementById("inventory")?.scrollIntoView({behavior:"smooth",block:"start"});
 }
-function showAllLocations(){const f=document.getElementById("filterLocation");if(f)f.value="";renderInventory()}
+function showAllLocations(){showAppView("inventory", { scroll: false });const f=document.getElementById("filterLocation");if(f)f.value="";renderInventory()}
 
 function refreshInventoryFilters() {
     const definitions = [
@@ -2666,6 +2759,7 @@ function setInventoryView(view) {
 }
 
 function openInventoryItem(id) {
+    showAppView("inventory", { scroll: false });
     inventoryView = "cards";
     renderInventory();
 
@@ -3663,6 +3757,7 @@ function openItemFromQrLink() {
     const qrLocation = params.get("location");
     if ((!itemId && !qrLocation) || pendingQrItemOpened || !currentUser) return;
     pendingQrItemOpened = true;
+    showAppView("inventory", { scroll: false });
     document.getElementById("search").value = "";
     ["filterSection", "filterCategory", "filterLocation"].forEach(id => {
         document.getElementById(id).value = "";
