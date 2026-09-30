@@ -506,6 +506,7 @@ button {
 .home-card.locations { background:linear-gradient(135deg,#047857,#34d399); }
 .home-card.print { background:linear-gradient(135deg,#b45309,#f59e0b); }
 .home-card.backup { background:linear-gradient(135deg,#7e22ce,#c084fc); }
+.home-card.build { background:linear-gradient(135deg,#be185d,#fb7185); }
 .view-heading { display:flex; align-items:center; gap:13px; margin:2px 0 15px; padding:11px 0; }
 .view-heading h2 { margin:0; color:#102a43; font-size:23px; }
 .home-back { flex:0 0 auto; background:#e0f2fe; color:#075985; font-weight:700; }
@@ -631,11 +632,15 @@ button {
         </button>
         <button type="button" class="home-card print" onclick="showAppView('print')">
             <span class="home-icon" aria-hidden="true">🏷️</span><strong>Labels &amp; Print</strong>
-            <small>Print item labels, custom labels, and measurement grids.</small>
+            <small>Make custom labels or print the inch and metric grids.</small>
         </button>
         <button type="button" class="home-card backup" onclick="showAppView('backup')">
             <span class="home-icon" aria-hidden="true">💾</span><strong>Backup &amp; Export</strong>
             <small>Download or restore a full backup, or export a spreadsheet.</small>
+        </button>
+        <button type="button" class="home-card build" onclick="showAppView('build')">
+            <span class="home-icon" aria-hidden="true">🛠️</span><strong>What Can I Make?</strong>
+            <small>Planned: project ideas from your parts and a list of what is missing.</small>
         </button>
     </div>
     </section>
@@ -993,6 +998,14 @@ button {
         </div>
         <p id="customLabelStatus" class="lookup-hint" role="status" aria-live="polite"></p>
     </div>
+    </section>
+
+    <section id="viewBuild" class="app-view" hidden aria-label="What Can I Make">
+        <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>What Can I Make?</h2></div>
+        <div class="panel">
+            <h2>Coming Soon</h2>
+            <p>This planned feature will suggest projects based on the parts in your inventory and show which components you may still need. The project suggestions are not connected yet.</p>
+        </div>
     </section>
 
 </div>
@@ -1716,7 +1729,8 @@ function showAppView(view, options = {}) {
         inventory: "viewInventory",
         locations: "viewLocations",
         backup: "viewBackup",
-        print: "viewPrint"
+        print: "viewPrint",
+        build: "viewBuild"
     };
     const dashboard = document.getElementById("homeDashboard");
     const isHome = !validViews[view];
