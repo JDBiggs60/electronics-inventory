@@ -487,6 +487,26 @@ button {
 </div>
 
 
+<!-- Electronics Inventory: password recovery + manual USD value, Sept. 29, 2026 -->
+<div id="passwordResetWrap" class="auth-wrap app-hidden">
+    <div class="auth-card">
+        <h2>Choose a New Password</h2>
+        <p id="passwordResetAccount">Checking your password-reset link…</p>
+        <form onsubmit="event.preventDefault();saveResetPassword()">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" autocomplete="new-password" minlength="6" required>
+            <label for="confirmNewPassword" style="margin-top:12px">Confirm new password</label>
+            <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="6" required>
+            <button type="button" class="secondary" onclick="toggleResetPasswords()" style="margin-top:12px">Show / Hide Passwords</button>
+            <div class="auth-actions">
+                <button type="submit" id="saveResetPasswordButton" class="primary" disabled>Save New Password</button>
+                <button type="button" class="secondary" onclick="cancelPasswordReset()">Back to Sign In</button>
+            </div>
+        </form>
+        <div id="passwordResetMessage" class="auth-message" role="status"></div>
+    </div>
+</div>
+
 <div id="authWrap" class="auth-wrap">
     <div class="auth-card">
         <h2>Electronics Inventory Sign In</h2>
@@ -723,6 +743,12 @@ button {
             </div>
 
             <div>
+                <label for="estimatedValue">Estimated Value Per Piece (USD)</label>
+                <input id="estimatedValue" type="number" min="0" max="99999999.99" step="0.01" inputmode="decimal" placeholder="Leave blank if unknown">
+                <p class="lookup-hint">Enter your own estimate for one piece. This is not an automatic price lookup.</p>
+            </div>
+
+            <div>
                 <label>Condition</label>
                 <select id="condition">
                     <option>New</option>
@@ -820,6 +846,8 @@ button {
                         <th>Section</th>
                         <th>Category</th>
                         <th>Qty</th>
+                        <th>Value Each</th>
+                        <th>Total Value</th>
                         <th>Location</th>
                         <th>Manufacturer</th>
                         <th>Part #</th>
@@ -872,6 +900,12 @@ button {
 <script>
 const SUPABASE_URL = "https://tgdyvyyggybatctevywf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_4a-tmm6M4lKpTRyVT10uTw_eB3ghxvG";
+const recoveryQuery = new URLSearchParams(window.location.search);
+const recoveryHash = new URLSearchParams(window.location.hash.slice(1));
+let passwordRecoveryMode = recoveryQuery.get("reset") === "1" || recoveryHash.get("type") === "recovery";
+let passwordRecoveryReady = false;
+let resetPasswordSaving = false;
+const recoveryLinkError = recoveryHash.get("error_description") || recoveryQuery.get("error_description") || "";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let inventory = [];
@@ -1443,12 +1477,124 @@ function authMessage(message = "") {
     document.getElementById("authMessage").textContent = message;
 }
 
+function showPasswordReset(session, verifiedRecovery = false) {
+    passwordRecoveryMode = true;
+    // A reset query alone is not proof that an email link was accepted.
+    let recoveryUser = "";
+    try {
+        if (verifiedRecovery && session?.user) sessionStorage.setItem("electronics-password-recovery-user", session.user.id);
+        recoveryUser = sessionStorage.getItem("electronics-password-recovery-user") || "";
+    } catch (_) { /* A fresh verified link works even when browser storage is unavailable. */ }
+    passwordRecoveryReady = Boolean(session?.user) && !recoveryLinkError &&
+        (verifiedRecovery || recoveryUser === session.user.id);
+    if (session?.user) currentUser = session.user;
+    document.getElementById("authWrap").classList.add("app-hidden");
+    document.getElementById("appRoot").classList.add("app-hidden");
+    document.getElementById("passwordResetWrap").classList.remove("app-hidden");
+    document.getElementById("saveResetPasswordButton").disabled = !passwordRecoveryReady || resetPasswordSaving;
+    document.getElementById("passwordResetAccount").textContent = passwordRecoveryReady
+        ? "Reset password for " + session.user.email
+        : "Follow a fresh password-reset link from your email.";
+    document.getElementById("passwordResetMessage").textContent = recoveryLinkError
+        ? "This reset link could not be used: " + recoveryLinkError + ". Go back to Sign In and request a new email."
+        : passwordRecoveryReady ? "Enter the same new password in both boxes." : "No valid reset session was found. Go back to Sign In and request another reset email.";
+}
+
+function toggleResetPasswords() {
+    const type = document.getElementById("newPassword").type === "password" ? "text" : "password";
+    document.getElementById("newPassword").type = type;
+    document.getElementById("confirmNewPassword").type = type;
+}
+
+function clearRecoveryAddress() {
+    try { sessionStorage.removeItem("electronics-password-recovery-user"); } catch (_) {}
+    const url = new URL(window.location.href);
+    ["reset", "code", "error", "error_code", "error_description"].forEach(key => url.searchParams.delete(key));
+    url.hash = "";
+    window.history.replaceState(null, "", url.pathname + url.search);
+}
+
+async function saveResetPassword() {
+    if (resetPasswordSaving) return;
+    const message = document.getElementById("passwordResetMessage");
+    if (!passwordRecoveryReady) { message.textContent = "Request a new password-reset email first."; return; }
+    const password = document.getElementById("newPassword").value;
+    const confirmation = document.getElementById("confirmNewPassword").value;
+    if (password.length < 6) { message.textContent = "Use at least 6 characters. Supabase may require a stronger password."; return; }
+    if (password !== confirmation) { message.textContent = "The two passwords do not match."; return; }
+    resetPasswordSaving = true;
+    const button = document.getElementById("saveResetPasswordButton");
+    button.disabled = true;
+    message.textContent = "Saving your new password…";
+    let updated = false;
+    try {
+        const { error } = await db.auth.updateUser({ password });
+        if (error) throw error;
+        updated = true;
+        document.getElementById("newPassword").value = "";
+        document.getElementById("confirmNewPassword").value = "";
+        // End this recovery session so the user verifies the new password by signing in.
+        const { error: signOutError } = await db.auth.signOut({ scope: "local" });
+        if (signOutError) {
+            passwordRecoveryReady = false;
+            message.textContent = "Your password was saved, but sign-out could not finish. Use Back to Sign In, then sign in with the new password.";
+            return;
+        }
+        passwordRecoveryMode = false;
+        passwordRecoveryReady = false;
+        clearRecoveryAddress();
+        showAuth();
+        authMessage("New password saved. Sign in with it now.");
+    } catch (error) {
+        message.textContent = (updated ? "The password was saved, but the next step failed: " : "Could not change the password: ") + (error.message || "Unknown error");
+    } finally {
+        resetPasswordSaving = false;
+        button.disabled = !passwordRecoveryReady;
+    }
+}
+
+async function cancelPasswordReset() {
+    if (resetPasswordSaving) return;
+    const { error } = await db.auth.signOut({ scope: "local" });
+    if (error) { document.getElementById("passwordResetMessage").textContent = "Could not sign out: " + error.message; return; }
+    passwordRecoveryMode = false;
+    passwordRecoveryReady = false;
+    clearRecoveryAddress();
+    ["newPassword", "confirmNewPassword"].forEach(id => document.getElementById(id).value = "");
+    showAuth();
+    authMessage("Enter your email and request a new reset link if needed.");
+}
+
+function valueFromInput(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return null;
+    if (!/^\d{1,8}(?:\.\d{1,2})?$/.test(text)) throw new Error("Enter a value from 0 to 99,999,999.99 with no more than two decimal places, or leave it blank.");
+    return Number(text);
+}
+
+function formatUsd(value) {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value));
+}
+
+function itemTotalValue(item) {
+    return item.estimatedValue === null || item.estimatedValue === undefined ? null
+        : Math.round(Number(item.estimatedValue) * 100) * Number(item.quantity || 0) / 100;
+}
+
+function savedUnitValue(row) {
+    const value = row.estimated_value;
+    return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) || Number(value) < 0
+        ? null : Number(value);
+}
+
 function showAuth() {
+    document.getElementById("passwordResetWrap").classList.add("app-hidden");
     document.getElementById("authWrap").classList.remove("app-hidden");
     document.getElementById("appRoot").classList.add("app-hidden");
 }
 
 function showApp() {
+    document.getElementById("passwordResetWrap").classList.add("app-hidden");
     document.getElementById("authWrap").classList.add("app-hidden");
     document.getElementById("appRoot").classList.remove("app-hidden");
 }
@@ -1462,7 +1608,7 @@ async function forgotPassword() {
  const email=document.getElementById("authEmail").value.trim();
  if(!email){authMessage("Enter your email address first, then tap Forgot password.");document.getElementById("authEmail").focus();return}
  authMessage("Sending password reset email…");
- const redirectTo=window.location.origin+window.location.pathname;
+ const redirectTo=window.location.origin+window.location.pathname+"?reset=1";
  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
  authMessage(error?error.message:"Password reset email sent. Check your inbox and follow the link.");
 }
@@ -1533,6 +1679,7 @@ function rowToItem(row) {
         partNumber: row.part_number || "",
         barcode: row.barcode || "",
         quantity: Number(row.quantity || 1),
+        estimatedValue: savedUnitValue(row),
         location: row.storage_location || "",
         condition: row.condition || "New",
         usedFor: row.used_for || "",
@@ -1665,6 +1812,7 @@ function startEditItem(id) {
     document.getElementById("partNumber").value = item.partNumber || "";
     document.getElementById("barcode").value = item.barcode || "";
     document.getElementById("quantity").value = Math.max(1, Number(item.quantity || 1));
+    document.getElementById("estimatedValue").value = item.estimatedValue ?? "";
     document.getElementById("location").value = item.location || "";
     document.getElementById("condition").value = item.condition || "Unknown";
     document.getElementById("usedFor").value = item.usedFor || "";
@@ -1738,7 +1886,7 @@ function chooseDuplicateAction(match, quantity, location, condition) {
         const details = document.createElement("p");
         details.textContent = `${item.name}\nAlready recorded: ${item.quantity}\nStored at: ${item.location}\nCondition: ${item.condition}\nMatch: ${match.reason}`;
         const explanation = document.createElement("p");
-        explanation.textContent = `Add ${quantity} more for a total of ${Number(item.quantity) + quantity}? Only combine them if they are the same part and will be stored together with the same condition. The existing item's details stay in place; new photos are attached to it.`;
+        explanation.textContent = `Add ${quantity} more for a total of ${Number(item.quantity) + quantity}? Only combine them if they are the same part and will be stored together with the same condition. The existing item's details stay in place; new photos are attached to it. Its existing value per piece is kept.`;
         if (normalize(location) !== normalize(item.location) || condition !== item.condition) {
             const difference = document.createElement("p");
             difference.textContent = `Your new entry says: ${location}, ${condition}. Combining keeps the existing location and condition shown above. Choose a separate item if these parts will be kept separately.`;
@@ -1860,6 +2008,9 @@ async function saveItemInternal() {
     const condition = document.getElementById("condition").value;
     const usedFor = document.getElementById("usedFor").value.trim();
     const notes = document.getElementById("notes").value.trim();
+    let estimatedValue;
+    try { estimatedValue = valueFromInput(document.getElementById("estimatedValue").value); }
+    catch (error) { alert(error.message); return; }
 
     if (!name) {
         alert("Please enter an item name.");
@@ -1922,6 +2073,7 @@ async function saveItemInternal() {
                 part_number: partNumber,
                 barcode,
                 quantity,
+                estimated_value: estimatedValue,
                 storage_location: location,
                 condition,
                 used_for: usedFor,
@@ -1964,6 +2116,7 @@ async function saveItemInternal() {
             part_number: partNumber,
             barcode,
             quantity,
+            estimated_value: estimatedValue,
             storage_location: location,
             condition,
             used_for: usedFor,
@@ -2071,6 +2224,7 @@ function clearForm() {
     document.getElementById("section").value="";
     document.getElementById("category").value="";
     document.getElementById("quantity").value=1;
+    document.getElementById("estimatedValue").value="";
     document.getElementById("condition").value="New";
     ["photo","cameraPhoto","backPhoto","cameraBackPhoto"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("photoFileName").textContent="No front photo selected";
@@ -2257,7 +2411,7 @@ function renderInventory() {
         tableWrap.style.display = "block";
 
         if (filtered.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="9">No electronics found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="11">No electronics found.</td></tr>';
         } else {
             tableBody.innerHTML = filtered.map(item => `
                 <tr class="inventory-row-link" onclick='openInventoryItem(${JSON.stringify(item.id)})' title="Open full inventory card">
@@ -2266,6 +2420,8 @@ function renderInventory() {
                     <td>${escapeHTML(item.section)}</td>
                     <td>${escapeHTML(item.category)}</td>
                     <td>${Number(item.quantity || 0)}</td>
+                    <td>${item.estimatedValue === null ? "Unknown" : formatUsd(item.estimatedValue)}</td>
+                    <td>${itemTotalValue(item) === null ? "Unknown" : formatUsd(itemTotalValue(item))}</td>
                     <td>${escapeHTML(item.location)}</td>
                     <td>${escapeHTML(item.manufacturer)}</td>
                     <td>${escapeHTML(item.partNumber)}</td>
@@ -2298,6 +2454,7 @@ function renderInventory() {
 
                     <div class="item-info">
                         <b>Quantity:</b> ${item.quantity}
+                        ${item.estimatedValue !== null ? `<br><b>Estimated Value Each:</b> ${formatUsd(item.estimatedValue)}<br><b>Total Estimated Value:</b> ${formatUsd(itemTotalValue(item))}` : ""}
                         <br>
                         <b>Location:</b> ${escapeHTML(item.location)}
 
@@ -2661,6 +2818,11 @@ function safeBackupItem(row) {
         notes: String(row.notes || ""),
         photo_path: row.photo_path || null
     };
+    // Preserve new values; an older backup without this field must not erase an existing value.
+    if (Object.prototype.hasOwnProperty.call(row, "estimated_value")) {
+        result.estimated_value = row.estimated_value === null || row.estimated_value === ""
+            ? null : valueFromInput(row.estimated_value);
+    }
     if (row.created_at) result.created_at = row.created_at;
     if (row.updated_at) result.updated_at = row.updated_at;
     return result;
@@ -2802,11 +2964,13 @@ async function exportInventoryCsv() {
         return;
     }
 
-    const headers = ["Item","Section","Category","Quantity","Location","Manufacturer","Part Number","Barcode","Condition","What It's Used For","Notes","Date Added","Photo Count"];
+    const headers = ["Item","Section","Category","Quantity","Location","Manufacturer","Part Number","Barcode","Condition","What It's Used For","Notes","Date Added","Photo Count","Estimated Value Each (USD)","Total Estimated Value (USD)"];
     const rows = inventory.map(item => [
         item.name, item.section, item.category, item.quantity, item.location,
         item.manufacturer, item.partNumber, item.barcode, item.condition,
-        item.usedFor, item.notes, item.dateAdded, getItemPhotos(item).length
+        item.usedFor, item.notes, item.dateAdded, getItemPhotos(item).length,
+        item.estimatedValue === null ? "" : Number(item.estimatedValue).toFixed(2),
+        itemTotalValue(item) === null ? "" : itemTotalValue(item).toFixed(2)
     ]);
     const csv = [headers, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
@@ -3126,33 +3290,58 @@ async function enterApp(user) {
     startRealtime();
 }
 
-db.auth.onAuthStateChange(async (event, session) => {
+// Do not await Supabase calls inside the auth callback: defer app loading.
+let appLoadingUserId = null;
+db.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+        showPasswordReset(session, true);
+        return;
+    }
+    if (passwordRecoveryMode) {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") showPasswordReset(session);
+        if (event === "SIGNED_OUT") {
+            passwordRecoveryReady = false;
+            currentUser = null;
+            inventory = [];
+            savedPhotosByItem = {};
+            renderInventory();
+            if (realtimeChannel) {
+                db.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+            document.getElementById("saveResetPasswordButton").disabled = true;
+        }
+        return;
+    }
     if (session?.user) {
-        await enterApp(session.user);
+        // Repeated sign-in/token events need not reload the entire app.
+        if (appLoadingUserId === session.user.id ||
+            (currentUser?.id === session.user.id && event !== "INITIAL_SESSION")) return;
+        appLoadingUserId = session.user.id;
+        setTimeout(async () => {
+            try {
+                if (!passwordRecoveryMode && appLoadingUserId === session.user.id) await enterApp(session.user);
+            } catch (error) {
+                setSyncStatus("Could not load the app: " + (error.message || "Unknown error"), false);
+            } finally {
+                appLoadingUserId = null;
+            }
+        }, 0);
     } else {
+        appLoadingUserId = null;
         currentUser = null;
         inventory = [];
+        savedPhotosByItem = {};
         renderInventory();
-
         if (realtimeChannel) {
             db.removeChannel(realtimeChannel);
             realtimeChannel = null;
         }
-
         showAuth();
     }
 });
+if (passwordRecoveryMode) showPasswordReset(null);
 
-(async function boot() {
-    const { data } = await db.auth.getSession();
-
-    if (data.session?.user) {
-        await enterApp(data.session.user);
-    } else {
-        showAuth();
-        renderInventory();
-    }
-})();
 </script>
 
 </body>
