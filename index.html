@@ -515,6 +515,17 @@ button {
 @media(min-width:700px) { .home-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; } .home-card { min-height:166px; padding:20px; } }
 @media(max-width:420px) { .home-grid { gap:10px; } .home-card { min-height:142px; padding:13px; } .home-card strong { font-size:16px; } .home-card small { font-size:12px; } }
 
+
+/* What Can I Make? project outlines */
+.build-project {border:1px solid #cbd5e1;border-left:5px solid #db2777;border-radius:12px;padding:14px;margin:12px 0;background:#fff;color:#102a43;overflow-wrap:anywhere;}
+.build-project summary {cursor:pointer;font-weight:700;line-height:1.5;min-height:44px;}
+.build-project summary:focus-visible {outline:3px solid #0ea5e9;outline-offset:3px;}
+.build-project h4 {margin:18px 0 6px;}
+.build-project p,.build-project li {line-height:1.55;}
+.build-project li {margin:8px 0;}
+.build-project ul,.build-project ol {padding-left:22px;}
+.build-part-link {background:#e0f2fe;color:#075985;padding:8px 10px;white-space:normal;text-align:left;max-width:100%;font-weight:700;text-decoration:underline;}
+#buildStatus {line-height:1.5;color:#475569;}
 </style>
 </head>
 
@@ -641,7 +652,7 @@ button {
         </button>
         <button type="button" class="home-card build" onclick="showAppView('build')">
             <span class="home-icon" aria-hidden="true">🛠️</span><strong>What Can I Make?</strong>
-            <small>Planned: project ideas from your parts and a list of what is missing.</small>
+            <small>Find project ideas, your matching parts, and what is missing.</small>
         </button>
     </div>
     </section>
@@ -1004,8 +1015,21 @@ button {
     <section id="viewBuild" class="app-view" hidden aria-label="What Can I Make">
         <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>What Can I Make?</h2></div>
         <div class="panel">
-            <h2>Coming Soon</h2>
-            <p>This planned feature will suggest projects based on the parts in your inventory and show which components you may still need. The project suggestions are not connected yet.</p>
+            <h2>Projects from your parts</h2>
+            <p>Tap an idea to see candidate parts, storage locations, missing parts, and the next steps. This first version matches a small project catalog against your loaded inventory; it does not use AI or perform an Internet search.</p>
+            <p class="lookup-hint">Part names cannot prove compatibility. These are starting outlines, not wiring instructions or complete shopping lists. Only confirmed, working, compatible parts can make a project ready to build. A wire, fuse, or jumper entry still needs its lengths, ratings, and accessory counts checked.</p>
+            <div class="inventory-tools">
+                <input id="buildSearch" type="search" aria-label="Search project ideas" placeholder="Search project ideas…" oninput="renderBuildProjects()">
+                <select id="buildFilter" aria-label="Filter project ideas" onchange="renderBuildProjects()">
+                    <option value="all">All Ideas</option>
+                    <option value="listed">Main Parts Listed — Verify</option>
+                    <option value="few">Missing a Few Main Parts</option>
+                    <option value="later">Ideas for Later</option>
+                </select>
+            </div>
+            <div class="buttons"><button type="button" id="refreshBuildButton" class="primary" onclick="refreshBuildProjects()">Refresh Inventory &amp; Ideas</button></div>
+            <p id="buildStatus" role="status" aria-live="polite"></p>
+            <div id="buildResults"></div>
         </div>
     </section>
 
@@ -1724,6 +1748,132 @@ function showApp() {
     document.getElementById("appRoot").classList.remove("app-hidden");
 }
 
+// What Can I Make? v1: local catalog matching; no API calls or inventory writes.
+let buildInventoryState = "loading";
+const buildPartTypes = {
+  arduino: ["Arduino-compatible controller", /\b(?:arduino|esp32|esp8266|raspberry pi pico|atmega328p)\b/i],
+  usb: ["USB cable for the controller", /\busb\b.*\bcable\b|\bcable\b.*\busb\b/i],
+  led: ["LED or LED module", /\bled(?:s| module)?\b/i],
+  resistor: ["Resistor (value to be checked)", /\bresistor(?:s)?\b/i],
+  breadboard: ["Breadboard", /\bbreadboard\b/i],
+  jumpers: ["Jumper wires", /\bjumper (?:wire|cable)s?\b|\bdupont\b/i],
+  dcMotor: ["DC motor", /\bdc\b.*\bmotor\b|\bmotor\b.*\bdc\b/i],
+  pwm: ["DC motor PWM speed-control module", /\bpwm\b.*\b(?:controller|control|driver|module)\b|\bmotor speed (?:control|controller)\b/i],
+  dcSupply: ["DC power supply or adapter", /\bdc\b.*\b(?:power supply|adapter|adaptor)\b|\b(?:power supply|adapter|adaptor)\b.*\bdc\b/i],
+  wire: ["Hookup wire", /\b(?:hookup|hook.up|electrical|copper) wire\b/i],
+  fuse: ["Fuse and holder (check both)", /\bfuse(?:s| holder)?\b/i],
+  fan: ["DC fan", /\bdc\b.*\bfan\b|\bfan\b.*\bdc\b/i],
+  thermostat: ["Temperature-control module", /\bw1209\b|\b(?:temperature controller|thermostat module)\b/i],
+  probe: ["Temperature sensor or probe", /\b(?:temperature sensor|temperature probe|thermistor|ds18b20|dht11|dht22)\b/i],
+  relay: ["Relay module", /\brelay (?:module|board)\b/i],
+  strip: ["LED strip", /\bled (?:strip|tape)\b/i],
+  switch: ["Low-voltage switch", /\b(?:toggle|rocker|pushbutton|push button|slide) switch\b/i],
+  stepper: ["Stepper motor", /\bstepper\b.*\bmotor\b|\bnema\s*(?:17|23|34)\b/i],
+  driver: ["Stepper motor driver", /\b(?:tb6600|dm542|dm556|a4988|drv8825|tmc2209)\b|\bstepper (?:motor )?driver\b/i]
+};
+const buildProjects = [
+  {id:"blink", name:"Arduino LED learning bench", description:"Learn to switch an LED on and off with a small controller.", difficulty:"Beginner", time:"1–3 hours", parts:[["arduino",1],["usb",1],["led",1],["resistor",1],["breadboard",1],["jumpers",1]], checks:["Confirm the controller model, USB connector, and USB power requirements.","Verify the LED polarity, forward voltage, and suitable resistor value. Jumper-wire count and lengths still need checking."], steps:["Open the matching inventory cards and verify markings and condition.","Find the official getting-started guide for the exact controller.","Follow its external LED example using the specified resistor; test one LED first."]},
+  {id:"motor", name:"Small DC motor speed-control bench", description:"Adjust the speed of a small DC motor with a purchased PWM module.", difficulty:"Intermediate", time:"2–4 hours", parts:[["dcMotor",1],["pwm",1],["dcSupply",1],["wire",1],["fuse",1]], checks:["Verify that this is a brushed DC motor, and that the module supports it.","Check the motor voltage and starting/stall current against the power supply and controller ratings.","Choose fuse, holder, wire size, and terminals for the actual load; secure the motor before testing."], steps:["Identify the exact motor, supply, and PWM module.","Obtain the module wiring instructions and motor ratings.","Plan a fused low-voltage bench setup, secure moving parts, and test without a mechanical load first."]},
+  {id:"fan", name:"Temperature-controlled DC fan", description:"Run a low-voltage fan when a cabinet reaches a chosen temperature.", difficulty:"Intermediate", time:"2–4 hours", parts:[["fan",1],["thermostat",1],["probe",1],["dcSupply",1],["wire",1],["fuse",1]], checks:["Match the sensor type to the temperature controller; some modules include a probe that must be recorded or confirmed.","Check supply voltage, fan current, and the controller output rating.","Determine whether an extra relay or driver and protection components are required."], steps:["Check the exact controller instructions and sensor compatibility.","Plan the low-voltage circuit, fuse, terminals, and mounting.","Test the sensor and switching thresholds on the bench before installing in a cabinet."]},
+  {id:"light", name:"Low-voltage LED shelf light", description:"Add switched LED strip lighting to a shelf or small parts cabinet.", difficulty:"Beginner–intermediate", time:"2–4 hours", parts:[["strip",1],["dcSupply",1],["switch",1],["wire",1],["fuse",1]], checks:["Check LED strip voltage, required strip length, and total current.","Confirm supply capacity, switch DC rating, fuse, holder, wire, connectors, and mounting materials.","Use a complete enclosed power adapter; this outline does not cover mains wiring."], steps:["Measure the area and determine the strip length needed.","Verify the strip and adapter specifications; plan mounting and wire routing.","Bench-test a fused low-voltage section before fitting the finished light."]},
+  {id:"sensor", name:"Arduino temperature monitor", description:"Read a temperature sensor on a computer through a controller’s USB connection.", difficulty:"Beginner–intermediate", time:"2–4 hours", parts:[["arduino",1],["usb",1],["probe",1],["breadboard",1],["jumpers",1]], checks:["Verify sensor voltage, interface, pinout, and controller logic voltage.","Determine any required pull-up resistors or other support parts from the exact sensor guide.","Confirm that suitable controller software and a sensor library are available."], steps:["Find the exact sensor model and official instructions.","Use its recommended controller example and any required support components.","View readings over USB and compare them with a known thermometer."]},
+  {id:"relay", name:"Arduino low-voltage relay test bench", description:"Practice switching a small DC load under software control.", difficulty:"Intermediate", time:"2–4 hours", parts:[["arduino",1],["usb",1],["relay",1],["fan",1],["dcSupply",1],["jumpers",1],["wire",1],["fuse",1]], checks:["Verify module supply voltage, trigger logic, isolation arrangement, and DC contact rating.","Check load current and whether suppression or additional protection is required.","Use only a low-voltage DC load for this bench project."], steps:["Check the relay module schematic and controller pin requirements.","Plan separate control and load connections according to the module instructions.","Test relay control before connecting the fused DC load."]},
+  {id:"stepper", name:"Single-axis stepper test bench", description:"Test one stepper motor and driver before considering a larger CNC project.", difficulty:"Intermediate", time:"3–6 hours", parts:[["stepper",1],["driver",1],["arduino",1],["usb",1],["dcSupply",1],["wire",1],["fuse",1]], checks:["Confirm the stepper wiring, phase current, and driver suitability; a NEMA size is not an electrical specification.","Verify driver supply range, current setting, control input requirements, and controller firmware.","Determine whether cooling, interface parts, a stop switch, or other support components are needed."], steps:["Get the exact motor and driver manuals; identify the motor coils.","Plan the control interface and current-limited driver setup.","Secure the motor and test slow movement first, following the driver instructions."]}
+];
+
+function buildItemText(item) {
+  return [item.name, item.partNumber].filter(Boolean).join(" ");
+}
+function buildUsableItem(item) {
+  const qty = Number(item.quantity);
+  return Number.isSafeInteger(qty) && qty > 0 &&
+    !/\b(?:broken|defective|faulty|not working|for parts|untested)\b/i.test(item.condition || "") &&
+    !/\b(?:unknown|unidentified|possibly|maybe)\b|\?/i.test(buildItemText(item));
+}
+function matchBuildProject(project, items) {
+  // Each inventory piece may serve only one role within a proposed project.
+  const remaining = new Map(items.map(item => [String(item.id), Number(item.quantity)]));
+  const requirements = project.parts.map(([kind, needed]) => {
+    let shortage = needed;
+    const matches = [];
+    for (const item of items) {
+      if (!buildUsableItem(item) || !buildPartTypes[kind][1].test(buildItemText(item))) continue;
+      // Never treat a motor driver/controller or fan as the motor itself.
+      if (kind === "stepper" && /\b(?:driver|controller|board|module)\b/i.test(buildItemText(item))) continue;
+      if (kind === "dcMotor" && /\b(?:driver|controller|control|module|fan|stepper|brushless|bldc)\b/i.test(buildItemText(item))) continue;
+      if (kind === "led" && /\bled (?:strip|tape|driver|controller)\b/i.test(buildItemText(item))) continue;
+      const available = remaining.get(String(item.id)) || 0;
+      const take = Math.min(available, shortage);
+      if (take <= 0) continue;
+      matches.push({item, count:take}); remaining.set(String(item.id), available-take); shortage -= take;
+      if (!shortage) break;
+    }
+    return {kind, label:buildPartTypes[kind][0], needed, shortage, matches};
+  });
+  const found = requirements.filter(r => !r.shortage).length;
+  const group = found === requirements.length ? "listed" : found >= Math.ceil(requirements.length*0.6) ? "few" : "later";
+  return {project, requirements, found, group};
+}
+function openBuildPart(id) {
+  // Clear old inventory filters so the chosen part is visible.
+  document.getElementById("search").value = "";
+  ["filterSection","filterCategory","filterLocation"].forEach(key => document.getElementById(key).value = "");
+  openInventoryItem(id);
+}
+function renderBuildProjects() {
+  const output = document.getElementById("buildResults");
+  const status = document.getElementById("buildStatus");
+  if (!output || !status) return;
+  output.replaceChildren();
+  if (!currentUser) {status.textContent="Sign in to find projects from your inventory.";return;}
+  if (buildInventoryState !== "ready") {status.textContent=buildInventoryState === "error" ? "Could not refresh inventory. Tap Refresh Inventory & Ideas to try again." : "Loading your inventory…";return;}
+  if (!inventory.length) {status.textContent="No saved parts yet. Add and confirm your first parts, then come back here.";return;}
+  status.textContent=`Checked ${inventory.length} loaded inventory records against ${buildProjects.length} project outlines. Matches are candidates; specifications and working condition still need verification.`;
+  const filter = document.getElementById("buildFilter").value;
+  const query = document.getElementById("buildSearch").value.toLowerCase().trim();
+  const ideas = buildProjects.map(p => matchBuildProject(p, inventory)).filter(m =>
+    (filter === "all" || filter === m.group) &&
+    (!query || (m.project.name+" "+m.project.description).toLowerCase().includes(query))
+  ).sort((a,b)=>b.found/b.requirements.length-a.found/a.requirements.length);
+  if (!ideas.length) {output.textContent="No project outlines match these filters. Try All Ideas or clear the search.";return;}
+  const headings = {listed:"Main parts listed — verify before building",few:"Missing a few main parts",later:"Ideas for later"};
+  for (const group of ["listed","few","later"]) {
+    const matches = ideas.filter(m => m.group === group);
+    if (!matches.length) continue;
+    const heading = document.createElement("h3");heading.textContent=headings[group];output.append(heading);
+    for (const match of matches) {
+      const p = match.project;
+      const card = document.createElement("details");card.className="build-project";
+      const summary = document.createElement("summary");summary.textContent=`${p.name} · ${match.found}/${match.requirements.length} main part types listed`;card.append(summary);
+      const info = document.createElement("p");info.textContent=`${p.description} Difficulty: ${p.difficulty}. Rough bench-work estimate: ${p.time}, after identification and parts gathering.`;card.append(info);
+      const title = document.createElement("h4");title.textContent="Candidate parts you have";card.append(title);
+      const have = document.createElement("ul");
+      for (const r of match.requirements) for (const m of r.matches) {
+        const li = document.createElement("li");
+        const button = document.createElement("button");button.type="button";button.className="build-part-link";
+        button.textContent=m.item.name || m.item.partNumber || "Open item";button.addEventListener("click",()=>openBuildPart(m.item.id));
+        li.append(button, document.createTextNode(` — use ${m.count}; recorded ${Number(m.item.quantity)}; ${m.item.location || "location not recorded"}. Role: ${r.label}. Condition: ${m.item.condition || "Unknown"}.`));have.append(li);
+      }
+      if (!have.children.length) {const li=document.createElement("li");li.textContent="No named candidate parts found in the loaded inventory.";have.append(li);}card.append(have);
+      const missingTitle=document.createElement("h4");missingTitle.textContent="Not found / still to check";card.append(missingTitle);
+      const missing=document.createElement("ul");
+      const gaps=match.requirements.filter(r=>r.shortage);
+      for (const r of gaps) {const li=document.createElement("li");li.textContent=`${r.label}: ${r.shortage} minimum entry needed.`;missing.append(li);}
+      const note=document.createElement("li");note.textContent=gaps.length ? "Not found means not matched by name or part number; you may own it under another description. Check before buying." : "All main part types have candidate entries. This is not a complete or verified bill of materials.";missing.append(note);card.append(missing);
+      const checksTitle=document.createElement("h4");checksTitle.textContent="Compatibility and additional parts";card.append(checksTitle);
+      const checks=document.createElement("ul");for(const text of p.checks){const li=document.createElement("li");li.textContent=text;checks.append(li);}card.append(checks);
+      const stepsTitle=document.createElement("h4");stepsTitle.textContent="How to get started";card.append(stepsTitle);
+      const steps=document.createElement("ol");for(const text of p.steps){const li=document.createElement("li");li.textContent=text;steps.append(li);}card.append(steps);
+      output.append(card);
+    }
+  }
+}
+async function refreshBuildProjects() {
+  const button=document.getElementById("refreshBuildButton");button.disabled=true;
+  try {await loadInventory();} catch(error) {buildInventoryState="error";} finally {button.disabled=false;renderBuildProjects();}
+}
+
+
 function showAppView(view, options = {}) {
     const validViews = {
         add: "viewAdd",
@@ -1740,6 +1890,7 @@ function showAppView(view, options = {}) {
         const section = document.getElementById(id);
         if (section) section.hidden = id !== validViews[view];
     });
+    if (view === "build") renderBuildProjects();
     if (options.scroll !== false) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -2106,6 +2257,8 @@ async function saveAdditionalPhotos(itemId){
 
 async function loadInventory() {
     if (!currentUser) return;
+    buildInventoryState = "loading";
+    renderBuildProjects();
 
     setSyncStatus("Loading cloud inventory…");
 
@@ -2115,11 +2268,14 @@ async function loadInventory() {
         .order("created_at", { ascending: false });
 
     if (error) {
+        buildInventoryState = "error";
+        renderBuildProjects();
         setSyncStatus("Cloud load failed: " + error.message, false);
         return;
     }
 
     inventory = (data || []).map(rowToItem);
+    buildInventoryState = "ready";
     await loadSavedPhotos();
     renderInventory();
     setSyncStatus("Cloud synced");
@@ -2809,6 +2965,7 @@ document.addEventListener("keydown", event => {
 });
 
 function renderInventory() {
+    renderBuildProjects();
     const inventoryDiv = document.getElementById("inventory");
     const tableWrap = document.getElementById("inventoryTableWrap");
     const tableBody = document.getElementById("inventoryTableBody");
