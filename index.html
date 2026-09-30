@@ -485,6 +485,9 @@ button {
 .item-price-status.is-searching { color:#1d4ed8; font-weight:700; }
 .item-price-status.is-error { color:#b91c1c; }
 .item-card button:disabled { cursor:wait; opacity:.65; }
+.custom-label-preview { width:min(100%,320px);aspect-ratio:4/3;background:#fff;border:1px dashed #64748b;border-radius:6px;margin:12px 0;display:flex;align-items:center;justify-content:center;white-space:pre-wrap;overflow:hidden;padding:8px;text-align:center; }
+.custom-label-preview img { width:100%;height:100%;object-fit:contain; }
+.custom-label-help { font-size:13px;color:#475569;line-height:1.45; }
 </style>
 </head>
 
@@ -582,7 +585,6 @@ button {
             Locations
         </div>
     </div>
-
 
     <div class="panel" id="pilePanel">
         <h2>Identify a Pile of Parts</h2>
@@ -905,6 +907,19 @@ button {
             <button type="button" class="primary" onclick="printMeasurementGrid()">Print Inch Grid</button>
             <button type="button" class="secondary" onclick="printMetricMeasurementGrid()">Print Metric Grid</button>
         </div>
+    </div>
+
+    <div class="panel" id="customLabelPanel">
+        <h2>Make a Custom Label</h2>
+        <p>Type your own wording, preview it, and make one 40 × 30 mm PDF label for your M220 label app.</p>
+        <label for="customLabelText">Label wording</label>
+        <textarea id="customLabelText" maxlength="180" rows="4" placeholder="Type the text you want on the label"></textarea>
+        <p class="custom-label-help">Up to 180 characters. The preview scales the text to fit. Shorter wording prints larger.</p>
+        <div id="customLabelPreview" class="custom-label-preview" aria-label="Custom label preview">Your label preview will appear here.</div>
+        <div class="buttons">
+            <button type="button" id="makeCustomLabelButton" class="primary" onclick="makeCustomLabelPdf()" disabled>Make Custom Label PDF</button>
+        </div>
+        <p id="customLabelStatus" class="lookup-hint" role="status" aria-live="polite"></p>
     </div>
 
 </div>
@@ -1939,6 +1954,8 @@ document.getElementById("estimatedValue").addEventListener("input", () => {
     if (currentLookupDetails) currentLookupDetails = { ...currentLookupDetails, price_applied: false };
     renderFormLookup();
 });
+document.getElementById("customLabelText").addEventListener("input", updateCustomLabelPreview);
+updateCustomLabelPreview();
 
 
 function rowToItem(row) {
@@ -2936,6 +2953,103 @@ function labelLine(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
         count++;
     }
     return count;
+}
+
+function customLabelCanvas(text) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 480;
+    canvas.height = 360;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("This browser could not create a label.");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#111";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const paragraphs = String(text || "").replace(/\r/g, "").split("\n");
+    let fontSize = 64;
+    let lines = [];
+    let lineHeight = 0;
+    const wrap = () => {
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        const output = [];
+        for (const paragraph of paragraphs) {
+            if (!paragraph.trim()) { output.push(""); continue; }
+            let line = "";
+            for (const word of paragraph.trim().split(/\s+/)) {
+                if (ctx.measureText(word).width > 440) {
+                    if (line) { output.push(line); line = ""; }
+                    let part = "";
+                    for (const character of Array.from(word)) {
+                        if (part && ctx.measureText(part + character).width > 440) { output.push(part); part = character; }
+                        else part += character;
+                    }
+                    line = part;
+                    continue;
+                }
+                const next = line ? line + " " + word : word;
+                if (line && ctx.measureText(next).width > 440) { output.push(line); line = word; }
+                else line = next;
+            }
+            if (line) output.push(line);
+        }
+        return output;
+    };
+    do {
+        lines = wrap();
+        lineHeight = fontSize * 1.16;
+        if (lines.length * lineHeight <= 322) break;
+        fontSize -= 2;
+    } while (fontSize >= 18);
+    if (fontSize < 18 || !lines.length) throw new Error("Shorten the wording so it fits on one label.");
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    const top = (canvas.height - lines.length * lineHeight) / 2;
+    lines.forEach((line, index) => ctx.fillText(line, canvas.width / 2, top + index * lineHeight, 440));
+    return canvas;
+}
+
+function updateCustomLabelPreview() {
+    const field = document.getElementById("customLabelText");
+    const preview = document.getElementById("customLabelPreview");
+    const button = document.getElementById("makeCustomLabelButton");
+    const text = field.value.trim();
+    button.disabled = !text;
+    preview.replaceChildren();
+    if (!text) { preview.textContent = "Your label preview will appear here."; return; }
+    try {
+        const image = document.createElement("img");
+        image.alt = "Preview of the custom label";
+        image.src = customLabelCanvas(text).toDataURL("image/png");
+        preview.append(image);
+    } catch (error) {
+        preview.textContent = error.message || "Could not preview this label.";
+        button.disabled = true;
+    }
+}
+
+async function makeCustomLabelPdf() {
+    const text = document.getElementById("customLabelText").value.trim();
+    const button = document.getElementById("makeCustomLabelButton");
+    const status = document.getElementById("customLabelStatus");
+    if (!text) { status.textContent = "Type the wording for your label first."; return; }
+    button.disabled = true;
+    status.textContent = "Preparing your one-label PDF…";
+    try {
+        const canvas = customLabelCanvas(text);
+        const jpegUrl = canvas.toDataURL("image/jpeg", 0.94);
+        const raw = atob(jpegUrl.slice(jpegUrl.indexOf(",") + 1));
+        const bytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+        const pdf = labelPdfFromJpeg(bytes, canvas.width, canvas.height);
+        const fileName = "Electronics_Inventory_Custom_Label_" + backupFileStamp() + ".pdf";
+        const result = await saveFileToDevice(pdf, fileName, "Custom inventory label");
+        status.textContent = result === "cancelled"
+            ? "Saving or sharing the label was cancelled. Your wording is still here."
+            : "One-label PDF ready. Open it in the M220 printer app and choose PDF Print.";
+    } catch (error) {
+        status.textContent = "Could not make the custom label: " + (error.message || "Unknown error");
+    } finally {
+        button.disabled = !document.getElementById("customLabelText").value.trim();
+    }
 }
 
 async function printSingleLabel() {
