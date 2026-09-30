@@ -525,7 +525,8 @@ button {
 .build-project li {margin:8px 0;}
 .build-project ul,.build-project ol {padding-left:22px;}
 .build-part-link {background:#e0f2fe;color:#075985;padding:8px 10px;white-space:normal;text-align:left;max-width:100%;font-weight:700;text-decoration:underline;}
-#buildStatus {line-height:1.5;color:#475569;}
+#buildStatus,#buildAIStatus {line-height:1.5;color:#475569;}
+#downloadBuildAIButton[hidden] {display:none!important;}
 </style>
 </head>
 
@@ -1015,7 +1016,22 @@ button {
     <section id="viewBuild" class="app-view" hidden aria-label="What Can I Make">
         <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>What Can I Make?</h2></div>
         <div class="panel">
-            <h2>Projects from your parts</h2>
+            <h2>AI Project Ideas</h2>
+            <p>Ask for useful projects based on your saved parts, or describe something you would like to make. This checks your selected records against your signed-in inventory.</p>
+            <label for="buildAISection">Parts to consider</label>
+            <select id="buildAISection"><option value="">All loaded inventory</option></select>
+            <label for="buildAIGoal" style="margin-top:12px">What would you like to make? (optional)</label>
+            <textarea id="buildAIGoal" maxlength="500" placeholder="Example: a stepper motor test bench, cabinet lighting, or a fan controller"></textarea>
+            <p class="lookup-hint">Runs only when you tap Generate AI Ideas. Each request uses your existing OpenAI API account and shares the 20-per-day allowance with online part lookups. Unknown specifications stay unverified. This version creates project concepts, without Internet research or detailed wiring instructions.</p>
+            <div class="buttons">
+                <button type="button" id="generateBuildAIButton" class="primary" onclick="generateBuildAIIdeas()">Generate AI Ideas</button>
+                <button type="button" id="downloadBuildAIButton" class="secondary" onclick="downloadBuildAIPlans()" hidden>Download AI Plans</button>
+            </div>
+            <p id="buildAIStatus" role="status" aria-live="polite"></p>
+            <div id="buildAIResults"></div>
+        </div>
+        <div class="panel">
+            <h2>Starter Projects from Your Parts</h2>
             <p>Tap an idea to see candidate parts, storage locations, missing parts, and the next steps. This first version matches a small project catalog against your loaded inventory; it does not use AI or perform an Internet search.</p>
             <p class="lookup-hint">Part names cannot prove compatibility. These are starting outlines, not wiring instructions or complete shopping lists. Only confirmed, working, compatible parts can make a project ready to build. A wire, fuse, or jumper entry still needs its lengths, ratings, and accessory counts checked.</p>
             <div class="inventory-tools">
@@ -1821,6 +1837,7 @@ function openBuildPart(id) {
   openInventoryItem(id);
 }
 function renderBuildProjects() {
+  updateBuildAIView();
   const output = document.getElementById("buildResults");
   const status = document.getElementById("buildStatus");
   if (!output || !status) return;
@@ -1871,6 +1888,107 @@ function renderBuildProjects() {
 async function refreshBuildProjects() {
   const button=document.getElementById("refreshBuildButton");button.disabled=true;
   try {await loadInventory();} catch(error) {buildInventoryState="error";} finally {button.disabled=false;renderBuildProjects();}
+}
+
+
+// AI ideas are generated only on request and kept in this open app session.
+let buildAIResult = null;
+let buildAIBusy = false;
+let buildAIRequestNumber = 0;
+function buildInventoryFingerprint() {
+  return JSON.stringify(inventory.map(i=>[i.id,i.name,i.partNumber,i.manufacturer,i.category,i.section,i.quantity,i.condition,i.location,i.usedFor,i.notes]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
+}
+function buildAISelection() {
+  const section=document.getElementById("buildAISection").value;
+  return inventory.filter(item=>buildUsableItem(item)&&(!section||item.section===section));
+}
+function updateBuildAIView() {
+  const output=document.getElementById("buildAIResults");
+  const status=document.getElementById("buildAIStatus");
+  if(!output||!status)return;
+  const select=document.getElementById("buildAISection");const selected=select.value;
+  const sections=[...new Set(inventory.map(i=>i.section).filter(Boolean))].sort();
+  select.replaceChildren();
+  const all=document.createElement("option");all.value="";all.textContent="All loaded inventory";select.append(all);
+  for(const section of sections){const option=document.createElement("option");option.value=section;option.textContent=section;select.append(option);}
+  select.value=sections.includes(selected)?selected:"";
+  select.disabled=buildAIBusy;
+  document.getElementById("buildAIGoal").disabled=buildAIBusy;
+  document.getElementById("generateBuildAIButton").disabled=buildAIBusy||!currentUser||buildInventoryState!=="ready";
+  document.getElementById("downloadBuildAIButton").hidden=true;
+  output.replaceChildren();
+  if(!currentUser){buildAIResult=null;buildAIRequestNumber++;status.textContent="Sign in to generate AI ideas.";return;}
+  if(buildAIBusy){status.textContent="AI is reviewing your selected parts. This can take about a minute…";return;}
+  if(buildInventoryState!=="ready"){status.textContent=buildInventoryState==="error"?"Refresh inventory before generating ideas.":"Loading inventory…";return;}
+  if(!buildAIResult){status.textContent="Choose a section if you wish, enter a goal, then tap Generate AI Ideas. Up to 100 identified, usable inventory records per request.";return;}
+  if(buildAIResult.owner!==currentUser.id||buildAIResult.fingerprint!==buildInventoryFingerprint()){
+    buildAIResult=null;status.textContent="Your inventory changed. Generate fresh ideas using the updated parts.";return;
+  }
+  status.textContent=buildAIResult.message;
+  if(!buildAIResult.projects.length)return;
+  document.getElementById("downloadBuildAIButton").hidden=false;
+  for(const plan of buildAIResult.projects){
+    const card=document.createElement("details");card.className="build-project";
+    const summary=document.createElement("summary");summary.textContent=plan.name+" — AI idea, verification needed";card.append(summary);
+    const description=document.createElement("p");description.textContent=plan.description+" Difficulty: "+plan.difficulty+". Rough planning estimate: "+plan.estimated_time;card.append(description);
+    const addList=(title,lines,ordered=false)=>{const h=document.createElement("h4");h.textContent=title;card.append(h);const list=document.createElement(ordered?"ol":"ul");for(const line of lines){const li=document.createElement("li");li.textContent=line;list.append(li);}card.append(list);};
+    const h=document.createElement("h4");h.textContent="Candidate parts from your inventory";card.append(h);
+    const have=document.createElement("ul");for(const part of plan.have){const li=document.createElement("li");const b=document.createElement("button");b.type="button";b.className="build-part-link";b.textContent=part.name||part.part_number||"Open item";b.addEventListener("click",()=>openBuildPart(part.item_id));li.append(b,document.createTextNode(` — use ${part.quantity}; recorded ${part.recorded_quantity}; ${part.location||"location not recorded"}. Condition: ${part.condition}. Proposed role: ${part.role}`));have.append(li);}card.append(have);
+    addList("Additional parts to check / obtain",plan.need.length?plan.need.map(n=>`${n.part} — ${n.quantity}. ${n.reason}`):["AI did not list additional parts. This does not establish a complete bill of materials."]);
+    addList("Verify before building",["AI suggestions are not verified designs. Check missing items against your full inventory and shop before buying.",...plan.checks]);
+    addList("Starting outline",plan.steps,true);
+    output.append(card);
+  }
+}
+function validateBuildAIClientPlans(data,selectedItems) {
+  const byId=new Map(selectedItems.map(i=>[String(i.id),i]));
+  if(!Array.isArray(data.projects)||data.projects.length>3)throw new Error("AI returned an unexpected project format.");
+  return data.projects.map(p=>{
+    if(!p||typeof p.name!=="string"||!p.name||!Array.isArray(p.have)||!p.have.length||!Array.isArray(p.need)||!Array.isArray(p.checks)||!Array.isArray(p.steps))throw new Error("AI returned an incomplete project outline.");
+    const allocated=new Map();
+    for(const h of p.have){
+      const item=byId.get(String(h.item_id));
+      if(!item||!Number.isSafeInteger(h.quantity)||h.quantity<1||h.recorded_quantity!==Number(item.quantity)||h.name!==String(item.name||"").trim().slice(0,140)||h.part_number!==String(item.partNumber||"").trim().slice(0,120)||h.location!==String(item.location||"").trim().slice(0,160)||h.condition!==(String(item.condition||"").trim().slice(0,60)||"Unknown"))throw new Error("Part details changed or an AI idea failed inventory checks. Refresh inventory and try again.");
+      const total=(allocated.get(item.id)||0)+h.quantity;if(total>Number(item.quantity))throw new Error("An AI idea needs more pieces than you have recorded.");allocated.set(item.id,total);
+    }
+    return p;
+  });
+}
+async function generateBuildAIIdeas() {
+  if(buildAIBusy)return;
+  const status=document.getElementById("buildAIStatus");
+  if(!currentUser||buildInventoryState!=="ready"){status.textContent="Sign in and refresh inventory first.";return;}
+  const selected=buildAISelection();
+  if(!selected.length){status.textContent="No identified, usable parts in this selection. Add or confirm parts first.";return;}
+  if(selected.length>100){status.textContent=`This selection has ${selected.length} usable records. Choose a smaller inventory section; the limit is 100 per request.`;return;}
+  const owner=currentUser.id;const fingerprint=buildInventoryFingerprint();const request=++buildAIRequestNumber;
+  const goal=document.getElementById("buildAIGoal").value.trim().slice(0,500);
+  buildAIResult=null;buildAIBusy=true;updateBuildAIView();
+  try{
+    const {data,error}=await db.functions.invoke("suggest-electronics-projects",{body:{item_ids:selected.map(i=>i.id),goal}});
+    if(currentUser?.id!==owner||request!==buildAIRequestNumber)return;
+    if(error){
+      let message=error.message||"Could not contact the project function.";
+      if(error.context&&typeof error.context.json==="function"){try{const details=await error.context.json();if(details?.error)message=String(details.error);}catch{}}
+      throw new Error(message);
+    }
+    if(!data?.success)throw new Error(data?.error||"AI could not generate project ideas.");
+    if(buildInventoryState!=="ready"||fingerprint!==buildInventoryFingerprint())throw new Error("Inventory changed while AI was working. Refresh and generate new ideas.");
+    const projects=validateBuildAIClientPlans(data,selected);
+    const label=document.getElementById("buildAISection").value||"all loaded inventory";
+    buildAIResult={owner,fingerprint,projects,generated_at:data.generated_at,goal,
+      message:`${projects.length} AI idea${projects.length===1?"":"s"} from ${Number(data.inventory_count)||selected.length} selected records (${label}). ${String(data.explanation||"")} These are alternative projects; shared parts cannot be used in all projects at once. Save the plans below if you want to keep them after closing or reloading the app.`};
+  }catch(error){
+    if(currentUser?.id===owner&&request===buildAIRequestNumber){buildAIResult={owner,fingerprint:buildInventoryFingerprint(),projects:[],message:"AI ideas: "+(error.message||"Request failed")+" The seven starter projects remain available below."};}
+  }finally{
+    buildAIBusy=false;updateBuildAIView();
+  }
+}
+function downloadBuildAIPlans() {
+  if(!buildAIResult||!currentUser||buildAIResult.owner!==currentUser.id||buildAIResult.fingerprint!==buildInventoryFingerprint()||!buildAIResult.projects.length)return;
+  const lines=["ELECTRONICS INVENTORY — AI PROJECT IDEAS","Generated: "+(buildAIResult.generated_at||"Unknown"),"Goal: "+(buildAIResult.goal||"Useful shop electronics"),"Unverified project concepts. Check exact models, ratings, working condition, and compatibility before building. No live Internet verification was performed.",buildAIResult.message,""];
+  for(const p of buildAIResult.projects){lines.push(p.name,p.description,"Difficulty: "+p.difficulty,"Rough planning estimate: "+p.estimated_time,"CANDIDATE PARTS:",...p.have.map(h=>`${h.name} (${h.part_number||"model not recorded"}) — use ${h.quantity} of ${h.recorded_quantity}; ${h.location||"location unknown"}; condition ${h.condition}; role: ${h.role}`),"ADDITIONAL PARTS:",...(p.need.length?p.need.map(n=>`${n.part}: ${n.quantity}. ${n.reason}`):["None listed by AI; completeness is not verified."]),"CHECKS:",...p.checks,"STARTING OUTLINE:",...p.steps,"");}
+  const url=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="Electronics_Inventory_AI_Project_Plans.txt";a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
 
