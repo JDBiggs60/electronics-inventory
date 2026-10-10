@@ -527,6 +527,11 @@ button {
 .build-part-link {background:#e0f2fe;color:#075985;padding:8px 10px;white-space:normal;text-align:left;max-width:100%;font-weight:700;text-decoration:underline;}
 #buildStatus,#buildAIStatus {line-height:1.5;color:#475569;}
 #downloadBuildAIButton[hidden] {display:none!important;}
+
+.audit-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:16px 0}.audit-stats div{background:#edf5f0;padding:12px;border-radius:8px}.audit-stats strong{display:block;font-size:24px}.audit-item{border:1px solid #ccd5df;padding:14px;border-radius:8px;margin:12px 0}.audit-good{color:#08733e;font-weight:bold}.audit-pending{color:#854d0e;font-weight:bold}.audit-floating{position:fixed;right:12px;bottom:16px;display:flex;gap:6px;z-index:80}.audit-floating button{background:#243c35;color:white;box-shadow:0 2px 6px #777;padding:12px}#appRoot{padding-bottom:75px}
+#auditPrint{display:none}
+@media print{.audit-floating{display:none!important}body.printing-audit *{visibility:hidden!important}body.printing-audit #auditPrint,body.printing-audit #auditPrint *{visibility:visible!important}body.printing-audit #auditPrint{display:block!important;position:absolute;left:0;top:0;width:100%;page:auditSheet;background:white;color:black} @page auditSheet{size:letter portrait;margin:.35in}.audit-sheet{height:4.75in;box-sizing:border-box;break-after:page;font:10pt Arial;padding:8px}.audit-sheet:last-child{break-after:auto}.audit-sheet table{width:100%;border-collapse:collapse}.audit-sheet td,.audit-sheet th{overflow-wrap:anywhere;border:1px solid #888;padding:5px;text-align:left}.audit-sheet .check{width:22px}.audit-sheet img{width:.7in;height:.7in;float:right}.audit-sheet h2{font-size:14pt;margin:0 0 5px}.audit-sheet small{font-size:9pt}}
+
 </style>
 </head>
 
@@ -630,6 +635,7 @@ button {
         <h2 id="homeWelcome">What would you like to do?</h2>
         <p>Your parts, locations, prices, and labels—ready when you need them.</p>
     </div>
+    <p style="font-size:13px">Electronics Inventory · Version 2026.10.10.1</p>
     <div class="home-grid" aria-label="App sections">
         <button type="button" class="home-card add" onclick="showAppView('add')">
             <span class="home-icon" aria-hidden="true">📷</span><strong>Add / Identify</strong>
@@ -655,6 +661,8 @@ button {
             <span class="home-icon" aria-hidden="true">🛠️</span><strong>What Can I Make?</strong>
             <small>Find project ideas, your matching parts, and what is missing.</small>
         </button>
+        <button type="button" class="home-card locations" onclick="showAppView('audit')"><span class="home-icon">✓</span><strong>Check Physical Inventory</strong><small>Check each location, track progress, and print checklists.</small></button>
+        <button type="button" class="home-card print" onclick="showAppView('help')"><span class="home-icon">?</span><strong>Help &amp; Instructions</strong><small>Search the guide to every main feature.</small></button>
     </div>
     </section>
 
@@ -964,6 +972,7 @@ button {
     <div class="panel">
         <h2>Storage Locations</h2>
         <p class="lookup-hint">Built automatically from the locations already used in your inventory. Click a location to show its contents.</p>
+        <button type="button" class="primary" onclick="showAppView('audit')">Check Locations / Print Inventory Sheets</button>
         <div id="storageLocationList" class="location-list"></div>
         <div class="buttons"><button type="button" class="secondary" onclick="showAllLocations()">Show All Inventory</button></div>
     </div>
@@ -1049,14 +1058,95 @@ button {
         </div>
     </section>
 
+    <section id="viewAudit" class="app-view" hidden>
+      <div class="view-heading"><button class="home-back" onclick="showAppView('home')">← Home</button><h2>Physical Inventory Progress</h2></div>
+      <div class="panel"><p>Count the parts in each recorded location. Verified means the recorded identity, quantity, location, and condition were checked. It does not mean electrically tested.</p><div id="auditStats" class="audit-stats"></div>
+      <p id="auditStatus" role="status"></p><label for="auditLocation">Location to check</label><select id="auditLocation" onchange="renderAudit()"><option value="">Choose a location</option></select>
+      <div class="buttons"><button class="secondary" onclick="printAuditSheet()">Print Half-Sheet Checklist</button><button class="secondary" onclick="loadInventory()">Refresh Inventory</button></div>
+      <label for="auditSearch">Search this location</label><input id="auditSearch" type="search" placeholder="Name or part number" oninput="renderAudit()"><label><input id="auditRemaining" type="checkbox" onchange="renderAudit()"> Only items needing a check</label>
+      <div id="auditItems"></div><h3>Progress by Location</h3><div id="auditLocations" class="location-list"></div><p>A completed location means every recorded item there was verified. Parts that have never been entered cannot be counted by this app.</p></div>
+    </section>
+    <section id="viewHelp" class="app-view" hidden><div class="view-heading"><button class="home-back" onclick="showAppView('home')">← Home</button><h2>Help &amp; Instructions</h2></div><div class="panel"><input id="helpSearch" type="search" aria-label="Search instructions" placeholder="Search instructions…" oninput="renderHelp()"><div id="helpTopics"></div></div></section>
+    <nav class="audit-floating" aria-label="Quick navigation"><button onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button><button onclick="showAppView('home')">🏠 Home</button></nav>
 </div>
 </div>
 
+<div id="auditPrint"></div>
 <div id="measurementGridPrint"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// Physical checks live in a reserved notes line, so existing backups preserve them.
+function auditNotes(value) {
+ const lines=String(value??'').split('\n');let record=null;
+ const text=lines.filter(line=>{if(!line.startsWith('[[EI_PHYSICAL_CHECK_V1:')||!line.endsWith(']]'))return true;try{const r=JSON.parse(line.slice(23,-2));if(r&&typeof r.fingerprint==='string'&&typeof r.date==='string'){record=r;return false}}catch(_){}return true}).join('\n').trimEnd();
+ return {text,record};
+}
+function joinAuditNotes(text,record){return String(text||'')+(record?'\n[[EI_PHYSICAL_CHECK_V1:'+JSON.stringify(record)+']]':'')}
+function auditFingerprint(item){return JSON.stringify([item.name,item.manufacturer,item.partNumber,item.barcode,Number(item.quantity),String(item.location||'').trim(),item.condition])}
+function auditVerified(item){return !!item.audit&&item.audit.fingerprint===auditFingerprint(item)&&Number.isFinite(Date.parse(item.audit.date))}
+function auditGroups(){const map=new Map();for(const item of inventory){const name=String(item.location||'').trim();if(!map.has(name))map.set(name,[]);map.get(name).push(item)}return [...map].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}))}
+function openAuditLocation(name){document.getElementById('auditLocation').value=name;document.getElementById('auditSearch').value='';document.getElementById('auditRemaining').checked=false;showAppView('audit')}
+function renderAudit(){
+ const stats=document.getElementById('auditStats');if(!stats)return;
+ const groups=auditGroups(),verified=inventory.filter(auditVerified).length;
+ const assigned=groups.filter(([name])=>name),complete=assigned.filter(([,items])=>items.every(auditVerified)).length;
+ const total=inventory.reduce((n,i)=>n+Number(i.quantity||0),0);
+ stats.innerHTML=[[inventory.length,'Component records'],[total,'Total pieces'],[verified,'Verified records'],[inventory.length-verified,'Records needing check'],[complete,'Locations completed'],[assigned.length-complete,'Locations remaining']].map(([n,label])=>`<div><strong>${n}</strong>${label}</div>`).join('');
+ const select=document.getElementById('auditLocation'),chosen=select.value;
+ select.replaceChildren(new Option('Choose a location',''));for(const [name]of groups)select.add(new Option(name||'No location recorded',name||'__unassigned__'));select.value=chosen;
+ document.getElementById('auditLocations').replaceChildren();for(const [name,items]of groups){const card=document.createElement('div');card.className='location-card';const b=document.createElement('button');b.textContent=name||'No location recorded';b.onclick=()=>openAuditLocation(name||'__unassigned__');const checked=items.filter(auditVerified).length;const desc=document.createElement('small');desc.textContent=`${checked} of ${items.length} records checked · ${name&&checked===items.length?'Complete':'Needs checking'}`;card.append(b,desc);document.getElementById('auditLocations').append(card)}
+ const target=document.getElementById('auditItems');target.replaceChildren();if(!select.value){target.textContent='Choose a location above to begin.';return}
+ const location=select.value==='__unassigned__'?'':select.value;const all=groups.find(([n])=>n===location)?.[1]||[];const query=document.getElementById('auditSearch').value.toLowerCase();const remaining=document.getElementById('auditRemaining').checked;
+ const summary=document.createElement('p');summary.textContent=`${all.filter(auditVerified).length} of ${all.length} recorded items verified in this location.`;target.append(summary);
+ const filtered=all.filter(i=>(!remaining||!auditVerified(i))&&`${i.name} ${i.partNumber}`.toLowerCase().includes(query));
+ for(const i of filtered){const card=document.createElement('div');card.className='audit-item';const title=document.createElement('h3');title.textContent=i.name;const details=document.createElement('p');details.textContent=`Part #: ${i.partNumber||'Not recorded'} · Recorded quantity: ${i.quantity} · Condition: ${i.condition}`;const state=document.createElement('p');state.className=auditVerified(i)?'audit-good':'audit-pending';state.textContent=auditVerified(i)?'Verified '+new Date(i.audit.date).toLocaleString():'Not verified — needs a physical check';const buttons=document.createElement('div');buttons.className='buttons';
+ const check=document.createElement('button');check.className='primary';check.textContent='Confirm Identity, Count & Location';check.onclick=()=>confirmAuditItem(i.id,check);
+ const edit=document.createElement('button');edit.className='secondary';edit.textContent='Open / Correct Item';edit.onclick=()=>openBuildPart(i.id);
+ buttons.append(check,edit);if(i.audit){const undo=document.createElement('button');undo.className='secondary';undo.textContent='Mark Not Verified';undo.onclick=()=>confirmAuditItem(i.id,undo,true);buttons.append(undo)}card.append(title,details,state,buttons);target.append(card)}
+ if(!filtered.length){const p=document.createElement('p');p.textContent='No items match these filters.';target.append(p)}
+}
+async function confirmAuditItem(id,button,clear=false){
+ if(!currentUser||buildInventoryState!=='ready'){alert('Sign in and refresh inventory before checking parts.');return}
+ const owner=currentUser.id,item=inventory.find(i=>String(i.id)===String(id));if(!item)return;
+ if(!clear&&!String(item.location||'').trim()){alert('Assign this item a location before verifying it.');return}
+ if(!clear&&!confirm(`Have you physically checked ${item.name}, its part number, ${item.quantity} pieces, condition ${item.condition}, and location ${item.location}?\n\nIf the count or location is wrong, cancel and correct the item first.`))return;
+ button.disabled=true;const status=document.getElementById('auditStatus');status.textContent='Saving physical check…';
+ try{
+ const {data:row,error}=await db.from('inventory_items').select('*').eq('id',id).eq('user_id',owner).maybeSingle();if(error)throw error;if(!row)throw new Error('Item no longer exists. Refresh inventory.');
+ const latest=rowToItem(row);if(auditFingerprint(latest)!==auditFingerprint(item))throw new Error('This item changed on another device. Refresh and check the latest count and location.');
+ const record=clear?null:{date:new Date().toISOString(),fingerprint:auditFingerprint(latest)};
+ let update=db.from('inventory_items').update({notes:joinAuditNotes(latest.notes,record),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',owner);
+ for(const field of ['notes','name','manufacturer','part_number','barcode','quantity','storage_location','condition'])update=row[field]==null?update.is(field,null):update.eq(field,row[field]);
+ const {data:changed,error:saveError}=await update.select('id');if(saveError)throw saveError;if(!changed?.length)throw new Error('The item changed while saving. Refresh and check it again.');
+ if(currentUser?.id!==owner)return;await loadInventory();status.textContent=clear?'Marked Not Verified.':'Physical check saved and cloud synced.';
+ }catch(e){status.textContent='Check not saved: '+e.message;alert(status.textContent)}finally{button.disabled=false}
+}
+function printAuditSheet(){
+ const selected=document.getElementById('auditLocation').value;if(!selected){alert('Choose a location first.');return}
+ const location=selected==='__unassigned__'?'':selected;
+ const items=inventory.filter(i=>String(i.location||'').trim()===location).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));if(!items.length)return;
+ let qr='';try{if(location){const url=new URL(window.location.origin+window.location.pathname);url.searchParams.set('location',location);const code=qrcode(0,'M');code.addData(url.href);code.make();qr=`<img alt="Open location" src="${code.createDataURL(6,8)}">`}}catch(e){alert('QR generator unavailable. Reload the app and try again.');return}
+ const pages=[];for(let n=0;n<items.length;n+=6){pages.push(`<section class="audit-sheet">${qr}<h2>Electronics Inventory</h2><b>${escapeHTML(location||'No location recorded')}</b><p>Physical checklist · ${Math.floor(n/6)+1} of ${Math.ceil(items.length/6)} · ${escapeHTML(new Date().toLocaleDateString())}<br><small>Check identity, count, location and condition. Paper checks must be confirmed in the app.</small></p><table><thead><tr><th class="check">✓</th><th>Component / Part #</th><th>Qty</th><th>Actual count</th></tr></thead><tbody>${items.slice(n,n+6).map(i=>`<tr><td>□</td><td>${escapeHTML(i.name.slice(0,75))}<br><small>${escapeHTML((i.partNumber||'').slice(0,55))}</small></td><td>${i.quantity}</td><td></td></tr>`).join('')}</tbody></table><p><small>Checked by: __________________ Date: __________</small></p></section>`)}
+ document.getElementById('auditPrint').innerHTML=pages.join('');document.body.classList.add('printing-audit');const clean=()=>{document.body.classList.remove('printing-audit');window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);try{window.print()}catch(e){clean();alert(e.message)}
+}
+const electronicsHelp=[
+ ['Add / Identify','Take a clear front photo, then a back photo or extra views if markings are hidden. Tap Identify, review the suggested name and part number, correct errors, set quantity and storage location, and save. AI identification is a suggestion; leave unknown specifications blank.'],
+ ['Pile photo','Spread a small group apart. Photograph the pile, review each suggested item and quantity, select what to keep, choose its location, then save. The app skips suspected duplicates for review. It cannot reliably count hidden or overlapping pieces.'],
+ ['My Inventory and duplicates','Search names, part numbers and locations. Use cards or list view. Open a record to edit it or print its label. A duplicate warning can combine quantities or save a separate item; keep separate records when identical parts are stored in different places.'],
+ ['Storage Locations','Locations are built from recorded items. Use consistent names such as Cabinet A - Drawer 7 - Bin 3. Open a location to see its contents. Use its QR label to return to that list. Change an item location by editing its record.'],
+ ['Check Physical Inventory and progress','Choose a location. Physically check each part identity, quantity, condition and location. Correct wrong records first, then tap Confirm Identity, Count & Location. Check status syncs to your account. Changes to those details invalidate an earlier check. A completed location covers recorded items only; add unrecorded stock separately. Verified does not mean electrically tested.'],
+ ['Printable inventory sheets','Choose a location in Check Physical Inventory and tap Print Half-Sheet Checklist. It includes every recorded item in that location even if your screen is filtered, with checkboxes, recorded quantity, actual count space and a location QR. Each page uses the upper half of a Letter sheet. Confirm paper checks in the app afterward. Print at 100% or Actual Size.'],
+ ['Labels and QR codes','Open an item to print its QR label. Storage Locations provides location labels. Labels & Print includes custom labels and measurement grids. A QR opens the same app; sign in to the account that owns the item. For the M220, save the label file and import it into the printer app, then select the matching size and orientation.'],
+ ['Find Price and online lookup','Use Find Price or the online lookup control after reviewing the part identity. Exact specifications and prices require reliable sources. Unknown prices stay unknown; a listing price is not a guaranteed resale value. Online requests need the existing lookup service and account allowance.'],
+ ['Backup & Export','Download a full backup before major changes and keep it somewhere you can find again. Full backups preserve the audit record stored with item notes. CSV is for spreadsheet use and does not contain photo files or restore physical checks. Restore is for recovery; review the existing restore prompts carefully.'],
+ ['What Can I Make?','Starter projects match names and quantities against a small catalog. Generate AI Ideas uses your configured AI service. These are concepts, not verified wiring designs. Check exact models, working condition, ratings, missing parts and compatibility before building or buying.'],
+ ['Top, Home and refreshing','Use floating Top to return to the top of the page and Home to open the main menu. Refresh Inventory reloads cloud records. If an update is missing, reload the app in your browser and check the version on its home screen.']
+];
+function renderHelp(){const target=document.getElementById('helpTopics');if(!target)return;const q=document.getElementById('helpSearch').value.toLowerCase();target.replaceChildren();for(const [title,text]of electronicsHelp.filter(t=>t.join(' ').toLowerCase().includes(q))){const d=document.createElement('div');d.className='audit-item';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;d.append(h,p);target.append(d)}if(!target.children.length)target.textContent='No instructions match that search.'}
+
+
 const SUPABASE_URL = "https://tgdyvyyggybatctevywf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_4a-tmm6M4lKpTRyVT10uTw_eB3ghxvG";
 const recoveryQuery = new URLSearchParams(window.location.search);
@@ -1999,7 +2089,7 @@ function showAppView(view, options = {}) {
         locations: "viewLocations",
         backup: "viewBackup",
         print: "viewPrint",
-        build: "viewBuild"
+        build: "viewBuild", audit: "viewAudit", help: "viewHelp"
     };
     const dashboard = document.getElementById("homeDashboard");
     const isHome = !validViews[view];
@@ -2009,6 +2099,8 @@ function showAppView(view, options = {}) {
         if (section) section.hidden = id !== validViews[view];
     });
     if (view === "build") renderBuildProjects();
+    if (view === "audit") renderAudit();
+    if (view === "help") renderHelp();
     if (options.scroll !== false) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -2349,7 +2441,9 @@ function rowToItem(row) {
         location: row.storage_location || "",
         condition: row.condition || "Unknown",
         usedFor: row.used_for || "",
-        notes: row.notes || "",
+        notes: auditNotes(row.notes).text,
+        rawNotes: row.notes ?? null,
+        audit: auditNotes(row.notes).record,
         photo: row.photo_path || "",
         createdAt: row.created_at || "",
         dateAdded: row.created_at
@@ -2684,7 +2778,9 @@ async function saveItemInternal() {
     const location = document.getElementById("location").value.trim();
     const condition = document.getElementById("condition").value;
     const usedFor = document.getElementById("usedFor").value.trim();
-    const notes = document.getElementById("notes").value.trim();
+    const enteredNotes = document.getElementById("notes").value.trim();
+    const previousAudit = inventory.find(i => String(i.id) === String(editingItemId))?.audit;
+    const notes = joinAuditNotes(enteredNotes, previousAudit);
     let lookupDetails = currentLookupDetails;
     if (lookupDetails && !lookupPriceApplies(lookupDetails, document.getElementById("estimatedValue").value)) lookupDetails = { ...lookupDetails, price_applied: false };
     let estimatedValue;
@@ -3875,6 +3971,7 @@ function printPreparedMeasurementGrid() {
 }
 
 function updateStats() {
+    renderAudit();
     document.getElementById("uniqueCount").textContent = inventory.length;
 
     const total = inventory.reduce(
@@ -3995,7 +4092,7 @@ async function migrateLocalInventoryOnce() {
             storage_location: item.location,
             condition: item.condition || "New",
             used_for: item.usedFor || item.used_for || "",
-            notes: item.notes || "",
+            notes: item.rawNotes ?? item.notes ?? "",
             photo_path: item.photo || null
         }));
 
