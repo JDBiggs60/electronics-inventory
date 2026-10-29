@@ -635,7 +635,7 @@ button {
         <h2 id="homeWelcome">What would you like to do?</h2>
         <p>Your parts, locations, prices, and labels—ready when you need them.</p>
     </div>
-    <p style="font-size:13px">Electronics Inventory · Version 2026.10.10.1</p>
+    <p style="font-size:13px">Electronics Inventory · Version 2026.10.28.1</p>
     <div class="home-grid" aria-label="App sections">
         <button type="button" class="home-card add" onclick="showAppView('add')">
             <span class="home-icon" aria-hidden="true">📷</span><strong>Add / Identify</strong>
@@ -1207,7 +1207,12 @@ function compressPhotoFile(file,maxSize=700,quality=.72){
 
 photoInput.addEventListener("change",async function(){
  const file=this.files?.[0];if(!file)return;document.getElementById("photoFileName").textContent=file.name||"Front photo selected";
- try{currentPhoto=await compressPhotoFile(file);photoPreview.src=currentPhoto;photoPreview.style.display="block";await identifyElectronics(currentPhoto)}
+ try{
+  currentPhoto=await compressPhotoFile(file);photoPreview.src=currentPhoto;photoPreview.style.display="block";
+  // Editing must keep existing form fields. Only brand-new entries auto-identify.
+  if(editingItemId!==null){setSyncStatus("Front photo updated. Existing item details were left unchanged.");return}
+  await identifyElectronics(currentPhoto)
+ }
  catch(error){console.error(error);alert("The front photo could not be loaded.")}
 });
 backPhotoInput.addEventListener("change",async function(){
