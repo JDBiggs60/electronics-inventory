@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+<link rel="manifest" href="./site.webmanifest">
+<meta name="theme-color" content="#1f2937">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Electronics Inventory">
 <title>Electronics Inventory</title>
 
 <style>
@@ -515,6 +521,33 @@ button {
 @media(min-width:700px) { .home-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; } .home-card { min-height:166px; padding:20px; } }
 @media(max-width:420px) { .home-grid { gap:10px; } .home-card { min-height:142px; padding:13px; } .home-card strong { font-size:16px; } .home-card small { font-size:12px; } }
 
+/* Fast inventory entry (Add / Identify) */
+.entry-save-feedback{display:none;margin:0 0 14px;padding:12px 14px;border-radius:9px;background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;line-height:1.45;font-weight:600}
+.entry-save-feedback.is-visible{display:block}
+.entry-location-banner{margin:0 0 12px;padding:12px 14px;border-radius:9px;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;line-height:1.45}
+.entry-location-banner strong{display:block;margin-bottom:4px}
+.entry-location-banner .buttons{margin-top:10px}
+.entry-defaults-hint{margin:6px 0 0;color:#64748b;font-size:13px;line-height:1.4}
+.entry-defaults-hint.is-ai{color:#1d4ed8}
+.advanced-details{margin-top:14px;border:1px solid #d7dce3;border-radius:10px;background:#f8fafc;padding:0 12px 12px}
+.advanced-details>summary{cursor:pointer;font-weight:700;padding:14px 4px;min-height:44px;list-style:none}
+.advanced-details>summary::-webkit-details-marker{display:none}
+.advanced-details>summary::before{content:"▸ ";color:#475569}
+.advanced-details[open]>summary::before{content:"▾ "}
+.pile-details{margin-bottom:18px}
+.pile-details>summary{cursor:pointer;font-weight:700;font-size:18px;padding:4px 0 10px;min-height:44px}
+.add-save-bar{position:sticky;bottom:0;z-index:35;margin:16px -18px -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);border-top:1px solid #d7dce3;box-shadow:0 -6px 18px rgba(15,23,42,.08);backdrop-filter:blur(6px)}
+.add-save-bar .buttons{margin-top:0}
+.add-save-bar button{min-height:48px;flex:1 1 140px}
+#saveAddAnotherButton[hidden]{display:none!important}
+#appRoot{padding-bottom:calc(75px + env(safe-area-inset-bottom,0px))}
+.audit-floating{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+@media(max-width:700px){
+ .add-save-bar .buttons{flex-direction:column}
+ .add-save-bar button{width:100%;flex:none}
+ .photo-picker-btn{min-height:48px;flex:1 1 auto}
+}
+
 
 /* What Can I Make? project outlines */
 .build-project {border:1px solid #cbd5e1;border-left:5px solid #db2777;border-radius:12px;padding:14px;margin:12px 0;background:#fff;color:#102a43;overflow-wrap:anywhere;}
@@ -528,7 +561,7 @@ button {
 #buildStatus,#buildAIStatus {line-height:1.5;color:#475569;}
 #downloadBuildAIButton[hidden] {display:none!important;}
 
-.audit-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:16px 0}.audit-stats div{background:#edf5f0;padding:12px;border-radius:8px}.audit-stats strong{display:block;font-size:24px}.audit-item{border:1px solid #ccd5df;padding:14px;border-radius:8px;margin:12px 0}.audit-good{color:#08733e;font-weight:bold}.audit-pending{color:#854d0e;font-weight:bold}.audit-floating{position:fixed;right:12px;bottom:16px;display:flex;gap:6px;z-index:80}.audit-floating button{background:#243c35;color:white;box-shadow:0 2px 6px #777;padding:12px}#appRoot{padding-bottom:75px}
+.audit-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:16px 0}.audit-stats div{background:#edf5f0;padding:12px;border-radius:8px}.audit-stats strong{display:block;font-size:24px}.audit-item{border:1px solid #ccd5df;padding:14px;border-radius:8px;margin:12px 0}.audit-good{color:#08733e;font-weight:bold}.audit-pending{color:#854d0e;font-weight:bold}.audit-floating{position:fixed;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;z-index:80}.audit-floating button{background:#243c35;color:white;box-shadow:0 2px 6px #777;padding:12px}#appRoot{padding-bottom:calc(75px + env(safe-area-inset-bottom,0px))}
 #auditPrint{display:none}
 @media print{.audit-floating{display:none!important}body.printing-audit *{visibility:hidden!important}body.printing-audit #auditPrint,body.printing-audit #auditPrint *{visibility:visible!important}body.printing-audit #auditPrint{display:block!important;position:absolute;left:0;top:0;width:100%;page:auditSheet;background:white;color:black} @page auditSheet{size:letter portrait;margin:.35in}.audit-sheet{height:4.75in;box-sizing:border-box;break-after:page;font:10pt Arial;padding:8px}.audit-sheet:last-child{break-after:auto}.audit-sheet table{width:100%;border-collapse:collapse}.audit-sheet td,.audit-sheet th{overflow-wrap:anywhere;border:1px solid #888;padding:5px;text-align:left}.audit-sheet .check{width:22px}.audit-sheet img{width:.7in;height:.7in;float:right}.audit-sheet h2{font-size:14pt;margin:0 0 5px}.audit-sheet small{font-size:9pt}}
 
@@ -635,7 +668,7 @@ button {
         <h2 id="homeWelcome">What would you like to do?</h2>
         <p>Your parts, locations, prices, and labels—ready when you need them.</p>
     </div>
-    <p style="font-size:13px">Electronics Inventory · Version 2026.10.28.1</p>
+    <p style="font-size:13px">Electronics Inventory · Version 2026.10.28.2</p>
     <div class="home-grid" aria-label="App sections">
         <button type="button" class="home-card add" onclick="showAppView('add')">
             <span class="home-icon" aria-hidden="true">📷</span><strong>Add / Identify</strong>
@@ -668,39 +701,29 @@ button {
 
     <section id="viewAdd" class="app-view" hidden aria-label="Add and identify parts">
         <div class="view-heading"><button type="button" class="home-back" onclick="showAppView('home')">← Home</button><h2>Add / Identify</h2></div>
-    <div class="panel" id="pilePanel">
-        <h2>Identify a Pile of Parts</h2>
-        <p>Spread parts apart so each is visible. Photograph the pile, check the suggested items, then choose what to save.</p>
-        <div class="buttons">
-            <button type="button" onclick="document.getElementById('pileCamera').click()">Take Pile Photo</button>
-            <button type="button" class="secondary" onclick="document.getElementById('pileFile').click()">Choose Pile Photo</button>
-        </div>
-        <input id="pileCamera" type="file" accept="image/*" capture="environment" class="hidden-photo-input">
-        <input id="pileFile" type="file" accept="image/*" class="hidden-photo-input">
-        <img id="pilePreview" style="display:none;max-width:100%;max-height:350px;margin:12px 0;border-radius:8px" alt="Pile of parts">
-        <div id="pileStatus" role="status"></div>
-        <div id="pileResults"></div>
-        <div id="pileSaveTools" style="display:none;margin-top:15px">
-            <label for="pileLocation">Storage location for selected items *</label>
-            <input id="pileLocation" placeholder="Example: Cabinet A, Drawer 7">
-            <p>Each row is editable. Uncheck uncertain items. Possible duplicates are skipped until you review them individually.</p>
-            <button type="button" id="pileSaveButton" onclick="savePileItems()">Add Checked Items to Inventory</button>
-        </div>
-    </div>
 
-    <div class="panel">
+    <div class="panel" id="addItemPanel">
 
         <h2>Add Electronic Item</h2>
+        <p class="lookup-hint" style="margin-top:0">Photograph → review the name → confirm quantity and location → Save or Save &amp; Add Another.</p>
         <div id="editItemNotice" class="edit-item-notice">
             <strong>Editing saved item</strong>
             <span id="editItemNoticeName"></span> Existing additional photos stay attached unless you add new ones.
+        </div>
+        <div id="entrySaveFeedback" class="entry-save-feedback" role="status" aria-live="polite"></div>
+        <div id="entryLocationBanner" class="entry-location-banner" hidden>
+            <strong>Remembered storage location</strong>
+            <span id="entryLocationBannerText"></span>
+            <div class="buttons">
+                <button type="button" class="secondary" onclick="clearRememberedLocation()">Clear Remembered Location</button>
+            </div>
         </div>
 
         <div class="form-grid">
 
             <div class="full">
                 <label>Photos</label>
-                <div class="lookup-hint" style="margin-bottom:8px;">Front and back are recommended. Add extra close-ups for labels, connectors, or markings.</div>
+                <div class="lookup-hint" style="margin-bottom:8px;">Front photo starts AI identification for new items. Back and extra photos are optional.</div>
                 <div class="multi-photo-area">
                     <div class="photo-slot">
                         <div class="photo-slot-title">Front Photo</div>
@@ -738,73 +761,6 @@ button {
             </div>
 
             <div>
-                <label>Section</label>
-                <select id="section">
-                    <option value="">Choose section</option>
-                    <option>Electronics</option>
-                    <option>CNC &amp; Automation</option>
-                    <option>Tools</option>
-                    <option>Hardware &amp; Fasteners</option>
-                    <option>Metal Stock</option>
-                    <option>Wood &amp; Materials</option>
-                    <option>3D Printing</option>
-                    <option>Other</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Category</label>
-                <select id="category">
-                    <option value="">Choose category</option>
-                    <option>Arduino / Microcontroller</option>
-                    <option>Control Board</option>
-                    <option>Stepper Motor</option>
-                    <option>Motor Driver</option>
-                    <option>Power Supply</option>
-                    <option>Relay</option>
-                    <option>Switch</option>
-                    <option>Sensor</option>
-                    <option>Display</option>
-                    <option>Connector</option>
-                    <option>Wire / Cable</option>
-                    <option>Electronic Component</option>
-                    <option>CNC Electronics</option>
-                    <option>3D Printer Electronics</option>
-                    <option>Other</option>
-                </select>
-            </div>
-
-            <div>
-                <label>Manufacturer</label>
-                <input
-                    id="manufacturer"
-                    placeholder="Example: StepperOnline"
-                >
-            </div>
-
-            <div>
-                <label>Model / Part Number</label>
-                <input
-                    id="partNumber"
-                    placeholder="Example: DM542T"
-                >
-            </div>
-
-            <div>
-                <label>UPC / Barcode Number</label>
-                <div class="barcode-row">
-                    <input id="barcode" inputmode="numeric" autocomplete="off" placeholder="Scan or enter barcode">
-                    <button type="button" class="secondary" onclick="startBarcodeScanner()">Scan Barcode</button>
-                </div>
-                <div id="scannerBox" class="scanner-box">
-                    <video id="barcodeVideo" playsinline muted></video>
-                    <div class="scanner-actions">
-                        <button type="button" class="secondary" onclick="stopBarcodeScanner()">Stop Camera</button>
-                    </div>
-                </div>
-            </div>
-
-            <div>
                 <label>Quantity</label>
                 <input
                     id="quantity"
@@ -829,8 +785,79 @@ button {
                         <button type="button" class="secondary" onclick="buildLocation()">Use This Location</button>
                         <button type="button" class="secondary" onclick="clearLocationBuilder()">Clear Location Builder</button>
                     </div>
-                    <div class="location-summary">Build a consistent location such as Cabinet A - Drawer 7 - Bin 3, or choose one you have already used.</div>
-                    <input id="location" style="margin-top:10px;" placeholder="Example: Cabinet A - Drawer 7 - Bin 3" oninput="syncLocationBuilderFromFinal()">
+                    <div class="location-summary">Build a consistent location such as Cabinet A - Drawer 7 - Bin 3, or choose one you have already used. The last saved location is remembered for the next new item.</div>
+                    <input id="location" style="margin-top:10px;" placeholder="Example: Cabinet A - Drawer 7 - Bin 3" oninput="syncLocationBuilderFromFinal(); refreshEntryLocationBanner()">
+                </div>
+            </div>
+
+            <div>
+                <label>Section</label>
+                <select id="section" onchange="markEntryDefaultsUserEdited()">
+                    <option value="">Choose section</option>
+                    <option>Electronics</option>
+                    <option>CNC &amp; Automation</option>
+                    <option>Tools</option>
+                    <option>Hardware &amp; Fasteners</option>
+                    <option>Metal Stock</option>
+                    <option>Wood &amp; Materials</option>
+                    <option>3D Printing</option>
+                    <option>Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Category</label>
+                <select id="category" onchange="markEntryDefaultsUserEdited()">
+                    <option value="">Choose category</option>
+                    <option>Arduino / Microcontroller</option>
+                    <option>Control Board</option>
+                    <option>Stepper Motor</option>
+                    <option>Motor Driver</option>
+                    <option>Power Supply</option>
+                    <option>Relay</option>
+                    <option>Switch</option>
+                    <option>Sensor</option>
+                    <option>Display</option>
+                    <option>Connector</option>
+                    <option>Wire / Cable</option>
+                    <option>Electronic Component</option>
+                    <option>CNC Electronics</option>
+                    <option>3D Printer Electronics</option>
+                    <option>Other</option>
+                </select>
+                <p id="entryDefaultsHint" class="entry-defaults-hint" hidden></p>
+            </div>
+
+            <details class="advanced-details full">
+                <summary>Advanced Details (manufacturer, barcode, notes, price)</summary>
+                <div class="form-grid" style="margin-top:8px">
+            <div>
+                <label>Manufacturer</label>
+                <input
+                    id="manufacturer"
+                    placeholder="Example: StepperOnline"
+                >
+            </div>
+
+            <div>
+                <label>Model / Part Number</label>
+                <input
+                    id="partNumber"
+                    placeholder="Example: DM542T"
+                >
+            </div>
+
+            <div class="full">
+                <label>UPC / Barcode Number</label>
+                <div class="barcode-row">
+                    <input id="barcode" inputmode="numeric" autocomplete="off" placeholder="Scan or enter barcode">
+                    <button type="button" class="secondary" onclick="startBarcodeScanner()">Scan Barcode</button>
+                </div>
+                <div id="scannerBox" class="scanner-box">
+                    <video id="barcodeVideo" playsinline muted></video>
+                    <div class="scanner-actions">
+                        <button type="button" class="secondary" onclick="stopBarcodeScanner()">Stop Camera</button>
+                    </div>
                 </div>
             </div>
 
@@ -870,8 +897,7 @@ button {
                 <button type="button" class="secondary" onclick="lookUpPartOnline()">Look Up Part Online</button>
                 <div class="lookup-hint">Searches the web using the barcode, manufacturer, model/part number, and item name already in the form.</div>
             </div>
-
-        </div>
+                </div>
 
         <div class="lookup-panel">
             <label style="display:flex;gap:10px;align-items:center"><input id="autoLookupPrice" type="checkbox" checked style="width:auto">Verify model and find a price after photo identification</label>
@@ -880,19 +906,49 @@ button {
             <p id="lookupStatus" role="status">Review the model and condition before saving.</p>
             <div id="lookupResult" hidden></div>
         </div>
+            </details>
+
+        </div>
+
         <div id="duplicateWarning" class="warning"></div>
 
+        <div class="add-save-bar">
         <div class="buttons">
             <button id="saveItemButton" class="primary" onclick="saveItem()">
                 Save Item
             </button>
 
-            <button id="clearFormButton" class="secondary" onclick="clearForm()">
+            <button type="button" id="saveAddAnotherButton" class="primary" onclick="saveItemAndAddAnother()">
+                Save &amp; Add Another
+            </button>
+
+            <button id="clearFormButton" class="secondary" onclick="clearOrCancelEntryForm()">
                 Clear
             </button>
         </div>
+        </div>
 
     </div>
+
+    <details class="panel pile-details" id="pilePanel">
+        <summary>Identify a Pile of Parts (optional)</summary>
+        <p>Spread parts apart so each is visible. Photograph the pile, check the suggested items, then choose what to save.</p>
+        <div class="buttons">
+            <button type="button" onclick="document.getElementById('pileCamera').click()">Take Pile Photo</button>
+            <button type="button" class="secondary" onclick="document.getElementById('pileFile').click()">Choose Pile Photo</button>
+        </div>
+        <input id="pileCamera" type="file" accept="image/*" capture="environment" class="hidden-photo-input">
+        <input id="pileFile" type="file" accept="image/*" class="hidden-photo-input">
+        <img id="pilePreview" style="display:none;max-width:100%;max-height:350px;margin:12px 0;border-radius:8px" alt="Pile of parts">
+        <div id="pileStatus" role="status"></div>
+        <div id="pileResults"></div>
+        <div id="pileSaveTools" style="display:none;margin-top:15px">
+            <label for="pileLocation">Storage location for selected items *</label>
+            <input id="pileLocation" placeholder="Example: Cabinet A, Drawer 7">
+            <p>Each row is editable. Uncheck uncertain items. Possible duplicates are skipped until you review them individually.</p>
+            <button type="button" id="pileSaveButton" onclick="savePileItems()">Add Checked Items to Inventory</button>
+        </div>
+    </details>
 
     </section>
 
@@ -1133,6 +1189,7 @@ function printAuditSheet(){
 }
 const electronicsHelp=[
  ['Add / Identify','Take a clear front photo, then a back photo or extra views if markings are hidden. Tap Identify, review the suggested name and part number, correct errors, set quantity and storage location, and save. AI identification is a suggestion; leave unknown specifications blank.'],
+ ['How to Inventory Several Components Quickly','Open Add / Identify. Take or choose a front photo; AI fills suggestions for a new item. Review the name and essential details, set quantity, and confirm the storage location shown in the remembered-location banner. Tap Save & Add Another to save and immediately prepare the next part while keeping location, section, and category. Change the location anytime; the new choice is remembered after a successful save. Use Clear Remembered Location when you start a different drawer or box. After a session, open My Inventory to print a QR label for any saved item.'],
  ['Pile photo','Spread a small group apart. Photograph the pile, review each suggested item and quantity, select what to keep, choose its location, then save. The app skips suspected duplicates for review. It cannot reliably count hidden or overlapping pieces.'],
  ['My Inventory and duplicates','Search names, part numbers and locations. Use cards or list view. Open a record to edit it or print its label. A duplicate warning can combine quantities or save a separate item; keep separate records when identical parts are stored in different places.'],
  ['Storage Locations','Locations are built from recorded items. Use consistent names such as Cabinet A - Drawer 7 - Bin 3. Open a location to see its contents. Use its QR label to return to that list. Change an item location by editing its record.'],
@@ -1169,6 +1226,132 @@ let barcodeStream = null;
 let barcodeDetector = null;
 let barcodeScanActive = false;
 let editingItemId = null;
+let entryDefaultsSource = ""; // "", "remembered", "ai", or "user"
+
+function entryPrefsStorageKey(userId = currentUser?.id) {
+    return userId ? "electronicsInventoryEntryPrefs_" + userId : "";
+}
+function readEntryPrefs(userId = currentUser?.id) {
+    const key = entryPrefsStorageKey(userId);
+    if (!key) return { location: "", section: "", category: "" };
+    try {
+        const raw = JSON.parse(localStorage.getItem(key) || "{}");
+        return {
+            location: String(raw.location || "").trim(),
+            section: String(raw.section || "").trim(),
+            category: String(raw.category || "").trim()
+        };
+    } catch {
+        return { location: "", section: "", category: "" };
+    }
+}
+function writeEntryPrefs(prefs, userId = currentUser?.id) {
+    const key = entryPrefsStorageKey(userId);
+    if (!key) return;
+    const next = {
+        location: String(prefs.location || "").trim(),
+        section: String(prefs.section || "").trim(),
+        category: String(prefs.category || "").trim()
+    };
+    localStorage.setItem(key, JSON.stringify(next));
+}
+function rememberEntryPrefsFromSave({ location, section, category }) {
+    if (!currentUser?.id) return;
+    writeEntryPrefs({
+        location: String(location || "").trim(),
+        section: String(section || "").trim(),
+        category: String(category || "").trim()
+    });
+}
+function setEntryDefaultsHint(source) {
+    entryDefaultsSource = source || "";
+    const hint = document.getElementById("entryDefaultsHint");
+    if (!hint) return;
+    if (source === "remembered") {
+        hint.hidden = false;
+        hint.classList.toggle("is-ai", false);
+        hint.textContent = "Section and category kept from your last save. A new front photo can update them.";
+    } else if (source === "ai") {
+        hint.hidden = false;
+        hint.classList.toggle("is-ai", true);
+        hint.textContent = "Section/category updated from the photo. You can still change them before saving.";
+    } else {
+        hint.hidden = true;
+        hint.textContent = "";
+        hint.classList.remove("is-ai");
+    }
+}
+function markEntryDefaultsUserEdited() {
+    if (editingItemId !== null) return;
+    setEntryDefaultsHint("");
+}
+function refreshEntryLocationBanner() {
+    const banner = document.getElementById("entryLocationBanner");
+    const text = document.getElementById("entryLocationBannerText");
+    if (!banner || !text) return;
+    if (editingItemId !== null) {
+        banner.hidden = true;
+        return;
+    }
+    const remembered = readEntryPrefs().location;
+    const current = document.getElementById("location")?.value.trim() || "";
+    if (!remembered && !current) {
+        banner.hidden = true;
+        text.textContent = "";
+        return;
+    }
+    banner.hidden = false;
+    if (current && remembered && current === remembered) {
+        text.textContent = "Next new item will use: " + current;
+    } else if (current) {
+        text.textContent = "Selected for this item: " + current + (remembered && remembered !== current ? " (remembered location was " + remembered + ")" : "");
+    } else {
+        text.textContent = "Remembered for next new item: " + remembered;
+    }
+}
+function clearRememberedLocation() {
+    if (!currentUser?.id) return;
+    const prefs = readEntryPrefs();
+    writeEntryPrefs({ ...prefs, location: "" });
+    if (editingItemId === null) {
+        document.getElementById("location").value = "";
+        clearLocationBuilder(false);
+    }
+    refreshEntryLocationBanner();
+    setSyncStatus("Remembered storage location cleared. Choose a location for the next items.");
+}
+function applyRememberedEntryDefaults(options = {}) {
+    if (editingItemId !== null) return;
+    const prefs = options.defaults || readEntryPrefs();
+    const keepHint = options.keepHint !== false;
+    if (prefs.location) {
+        document.getElementById("location").value = prefs.location;
+        syncLocationBuilderFromFinal();
+    }
+    if (prefs.section) {
+        const section = document.getElementById("section");
+        if ([...section.options].some(o => o.value === prefs.section)) section.value = prefs.section;
+    }
+    if (prefs.category) {
+        const category = document.getElementById("category");
+        if ([...category.options].some(o => o.value === prefs.category)) category.value = prefs.category;
+    }
+    if (keepHint && (prefs.section || prefs.category)) setEntryDefaultsHint("remembered");
+    else if (!prefs.section && !prefs.category) setEntryDefaultsHint("");
+    refreshEntryLocationBanner();
+    updateSaveAnotherVisibility();
+}
+function setEntrySaveFeedback(message) {
+    const box = document.getElementById("entrySaveFeedback");
+    if (!box) return;
+    box.textContent = message || "";
+    box.classList.toggle("is-visible", !!message);
+}
+function updateSaveAnotherVisibility() {
+    const button = document.getElementById("saveAddAnotherButton");
+    if (!button) return;
+    button.hidden = editingItemId !== null;
+}
 
 const photoInput = document.getElementById("photo");
 const cameraPhotoInput = document.getElementById("cameraPhoto");
@@ -1451,6 +1634,8 @@ async function identifyElectronics(imageData) {
         if (mappedSection) {
             document.getElementById("section").value = mappedSection;
         }
+
+        if (mappedCategory || mappedSection) setEntryDefaultsHint("ai");
 
         // Put useful AI information that does not have its own form field
         // into Notes, without inventing anything.
@@ -2106,6 +2291,14 @@ function showAppView(view, options = {}) {
     if (view === "build") renderBuildProjects();
     if (view === "audit") renderAudit();
     if (view === "help") renderHelp();
+    if (view === "add" && editingItemId === null) {
+        const blankIdentity = !document.getElementById("itemName").value.trim() && !currentPhoto;
+        if (blankIdentity) applyRememberedEntryDefaults();
+        else {
+            refreshEntryLocationBanner();
+            updateSaveAnotherVisibility();
+        }
+    }
     if (options.scroll !== false) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -2626,6 +2819,10 @@ function startEditItem(id) {
     document.getElementById("clearFormButton").textContent = "Cancel Edit";
     document.getElementById("editItemNoticeName").textContent = item.name + ".";
     document.getElementById("editItemNotice").style.display = "block";
+    setEntrySaveFeedback("");
+    setEntryDefaultsHint("");
+    refreshEntryLocationBanner();
+    updateSaveAnotherVisibility();
 
     document.getElementById("editItemNotice").scrollIntoView({ behavior: "smooth", block: "start" });
     setSyncStatus("Editing " + item.name + ". Make your changes, then choose Update Item.");
@@ -2633,20 +2830,75 @@ function startEditItem(id) {
 
 let itemSaveInProgress = false;
 
-async function saveItem() {
+function clearOrCancelEntryForm() {
+    if (editingItemId !== null) clearForm({ applyRemembered: true });
+    else clearForm();
+    setEntrySaveFeedback("");
+}
+
+async function saveItemAndAddAnother() {
+    if (editingItemId !== null) return;
+    await saveItem({ addAnother: true });
+}
+
+async function saveItem(options = {}) {
+    const addAnother = !!options.addAnother;
+    if (addAnother && editingItemId !== null) return;
     if (activeFormLookup !== null) { alert("Please wait for the Internet lookup to finish, or choose Clear to cancel this entry."); return; }
     if (itemSaveInProgress) return;
     itemSaveInProgress = true;
-    const buttons = ["saveItemButton", "clearFormButton"].map(id => document.getElementById(id));
+    const buttons = ["saveItemButton", "clearFormButton", "saveAddAnotherButton"].map(id => document.getElementById(id));
     buttons.forEach(button => { if (button) button.disabled = true; });
     try {
-        await saveItemInternal();
+        const result = await saveItemInternal();
+        if (!result?.ok) return;
+
+        if (result.kind !== "update") {
+            rememberEntryPrefsFromSave({
+                location: result.location,
+                section: result.section,
+                category: result.category
+            });
+        }
+
+        await loadInventory();
+
+        if (result.kind === "update") {
+            clearForm({ applyRemembered: true });
+            setEntrySaveFeedback('Updated "' + result.name + '".');
+            setSyncStatus("Item updated and cloud synced");
+            return;
+        }
+
+        const savedLine = result.kind === "duplicate-add"
+            ? `Added ${result.quantityAdded} to the existing item. Saved successfully near ${result.location}.`
+            : `Saved successfully to ${result.location}.`;
+
+        if (addAnother) {
+            clearForm({
+                keepEntryDefaults: true,
+                defaults: {
+                    location: result.location,
+                    section: result.section,
+                    category: result.category
+                }
+            });
+            setEntrySaveFeedback(savedLine + " Ready for the next component.");
+            setSyncStatus(savedLine + " Ready for the next component." + (result.photoWarning ? " " + result.photoWarning : ""), !result.photoWarning);
+            document.getElementById("takePhotoButton")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+            clearForm({ applyRemembered: true });
+            setEntrySaveFeedback(savedLine);
+            setSyncStatus(savedLine + (result.photoWarning ? " " + result.photoWarning : ""), !result.photoWarning);
+        }
+        if (result.photoWarning) alert(result.photoWarning);
     } catch (error) {
         setSyncStatus("Save could not finish: " + (error.message || "Unknown error"), false);
-        alert("Save could not finish. Check the inventory before trying again: " + (error.message || "Unknown error"));
+        alert("Save could not finish. Your photos and form entries are still here. Check the inventory before trying again: " + (error.message || "Unknown error"));
     } finally {
         itemSaveInProgress = false;
         buttons.forEach(button => { if (button) button.disabled = false; });
+        updateSaveAnotherVisibility();
     }
 }
 
@@ -2700,14 +2952,14 @@ function chooseDuplicateAction(match, quantity, location, condition) {
     });
 }
 
-async function addDuplicateQuantity(duplicate, quantity) {
+async function addDuplicateQuantity(duplicate, quantity, formMeta = {}) {
     const ownerId = currentUser.id;
     setSyncStatus("Checking existing quantity…");
     // Read the current cloud count and require it still to match when updating.
     const { data: row, error: readError } = await db.from("inventory_items")
         .select("*").eq("id", duplicate.id).eq("user_id", ownerId).maybeSingle();
     if (readError) throw readError;
-    if (!row) { alert("This item is no longer available. Refresh the inventory before saving."); return; }
+    if (!row) { alert("This item is no longer available. Refresh the inventory before saving."); return { ok: false }; }
     const latest = rowToItem(row);
     if (latest.quantity !== duplicate.quantity || latest.location !== duplicate.location ||
         latest.condition !== duplicate.condition || latest.name !== duplicate.name ||
@@ -2715,11 +2967,11 @@ async function addDuplicateQuantity(duplicate, quantity) {
         latest.manufacturer !== duplicate.manufacturer) {
         await loadInventory();
         alert("The existing item changed since it was shown. Your new entry is still in the form. Choose Save Item again to review the latest details.");
-        return;
+        return { ok: false };
     }
     const newQuantity = latest.quantity + quantity;
     if (!Number.isSafeInteger(newQuantity) || newQuantity > 2147483647) {
-        alert("The combined quantity is too large. Please check the quantities."); return;
+        alert("The combined quantity is too large. Please check the quantities."); return { ok: false };
     }
     const { data: updated, error: updateError } = await db.from("inventory_items")
         .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
@@ -2728,7 +2980,7 @@ async function addDuplicateQuantity(duplicate, quantity) {
     if (!updated?.length) {
         await loadInventory();
         alert("The quantity changed while saving. Nothing was added. Choose Save Item again to review the latest count.");
-        return;
+        return { ok: false };
     }
     // Attach new photos without replacing the existing front or other photos.
     let photoFailure = "";
@@ -2757,16 +3009,25 @@ async function addDuplicateQuantity(duplicate, quantity) {
     } catch (error) {
         photoFailure = error.message || "Unknown error";
     }
-    clearForm();
-    await loadInventory();
-    setSyncStatus(`Added ${quantity}. Existing quantity is now ${newQuantity}.` + (photoFailure ? " New photos were not saved." : " Cloud synced."), !photoFailure);
-    if (photoFailure) alert(`The quantity was updated to ${newQuantity}, but new photos could not be saved: ${photoFailure}\n\nDo not add the quantity again. Open the existing item with Edit to attach the photos again.`);
+    return {
+        ok: true,
+        kind: "duplicate-add",
+        name: latest.name,
+        location: String(formMeta.location || latest.location || "").trim(),
+        section: String(formMeta.section || "").trim(),
+        category: String(formMeta.category || "").trim(),
+        quantityAdded: quantity,
+        newQuantity,
+        photoWarning: photoFailure
+            ? `The quantity was updated to ${newQuantity}, but new photos could not be saved: ${photoFailure}\n\nDo not add the quantity again. Open the existing item with Edit to attach the photos again.`
+            : ""
+    };
 }
 
 async function saveItemInternal() {
     if (!currentUser) {
         alert("Please sign in first.");
-        return;
+        return { ok: false };
     }
 
     const name = document.getElementById("itemName").value.trim();
@@ -2778,7 +3039,7 @@ async function saveItemInternal() {
     const quantity = Number(document.getElementById("quantity").value);
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 2147483647) {
         alert("Please enter a whole-number quantity of at least 1.");
-        return;
+        return { ok: false };
     }
     const location = document.getElementById("location").value.trim();
     const condition = document.getElementById("condition").value;
@@ -2790,16 +3051,16 @@ async function saveItemInternal() {
     if (lookupDetails && !lookupPriceApplies(lookupDetails, document.getElementById("estimatedValue").value)) lookupDetails = { ...lookupDetails, price_applied: false };
     let estimatedValue;
     try { estimatedValue = valueFromInput(document.getElementById("estimatedValue").value); }
-    catch (error) { alert(error.message); return; }
+    catch (error) { alert(error.message); return { ok: false }; }
 
     if (!name) {
         alert("Please enter an item name.");
-        return;
+        return { ok: false };
     }
 
     if (!location) {
         alert("Please enter where the item is stored.");
-        return;
+        return { ok: false };
     }
 
     const duplicateMatch = findDuplicate(name, partNumber, barcode, manufacturer, editingItemId);
@@ -2823,10 +3084,9 @@ async function saveItemInternal() {
 
         if (editingItemId === null) {
             const action = await chooseDuplicateAction(duplicateMatch, quantity, location, condition);
-            if (action === "cancel") return;
+            if (action === "cancel") return { ok: false };
             if (action === "add") {
-                await addDuplicateQuantity(duplicate, quantity);
-                return;
+                return await addDuplicateQuantity(duplicate, quantity, { location, section, category });
             }
         } else {
             // Editing replaces this record's quantity; it must never add it to another record.
@@ -2835,7 +3095,7 @@ async function saveItemInternal() {
                 "\nStored at: " + duplicate.location +
                 "\n\nKeep both entries and update the item you are editing?"
             );
-            if (!continueSaving) return;
+            if (!continueSaving) return { ok: false };
         }
     }
 
@@ -2868,20 +3128,18 @@ async function saveItemInternal() {
         if (updateError) {
             setSyncStatus("Update failed: " + updateError.message, false);
             alert("Could not update item: " + updateError.message);
-            return;
+            return { ok: false };
         }
 
+        let photoWarning = "";
         try {
             await saveAdditionalPhotos(itemId);
         } catch (photoError) {
             console.error("Additional photo save failed:", photoError);
-            alert("The item was updated, but the new extra photos could not be saved: " + (photoError.message || "Unknown error"));
+            photoWarning = "The item was updated, but the new extra photos could not be saved: " + (photoError.message || "Unknown error");
         }
 
-        clearForm();
-        await loadInventory();
-        setSyncStatus("Item updated and cloud synced");
-        return;
+        return { ok: true, kind: "update", name, location, section, category, photoWarning };
     }
 
     setSyncStatus("Saving to cloud…");
@@ -2910,19 +3168,19 @@ async function saveItemInternal() {
     if (error) {
         setSyncStatus("Save failed: " + error.message, false);
         alert("Could not save item: " + error.message);
-        return;
+        return { ok: false };
     }
 
+    let photoWarning = "";
     try {
         const newItemId = insertedRows?.[0]?.id;
         if (newItemId) await saveAdditionalPhotos(newItemId);
     } catch (photoError) {
         console.error("Additional photo save failed:", photoError);
-        alert("The item was saved, but the extra photos could not be saved: " + (photoError.message || "Unknown error"));
+        photoWarning = "The item was saved, but the extra photos could not be saved: " + (photoError.message || "Unknown error");
     }
 
-    clearForm();
-    await loadInventory();
+    return { ok: true, kind: "insert", name, location, section, category, photoWarning };
 }
 
 async function deleteItem(id) {
@@ -2993,7 +3251,10 @@ async function removeOne(id) {
     await loadInventory();
 }
 
-function clearForm() {
+function clearForm(options = {}) {
+    const keepEntryDefaults = !!options.keepEntryDefaults;
+    const applyRemembered = !!options.applyRemembered;
+    const defaults = options.defaults || null;
     invalidateFormLookup();
     document.getElementById("lookupStatus").textContent = "Review the model and condition before saving.";
     stopBarcodeScanner();
@@ -3004,9 +3265,14 @@ function clearForm() {
     if (saveButton) saveButton.textContent = "Save Item";
     if (clearButton) clearButton.textContent = "Clear";
     if (editNotice) editNotice.style.display = "none";
-    ["itemName","manufacturer","partNumber","barcode","location","usedFor","notes"].forEach(id=>document.getElementById(id).value="");
-    document.getElementById("section").value="";
-    document.getElementById("category").value="";
+    ["itemName","manufacturer","partNumber","barcode","usedFor","notes"].forEach(id=>document.getElementById(id).value="");
+    if (!keepEntryDefaults) {
+        document.getElementById("location").value = "";
+        document.getElementById("section").value = "";
+        document.getElementById("category").value = "";
+        clearLocationBuilder(false);
+        setEntryDefaultsHint("");
+    }
     document.getElementById("quantity").value=1;
     document.getElementById("estimatedValue").value="";
     document.getElementById("condition").value="New";
@@ -3017,7 +3283,15 @@ function clearForm() {
     photoPreview.src="";photoPreview.style.display="none";backPhotoPreview.src="";backPhotoPreview.style.display="none";
     document.getElementById("extraPhotos").innerHTML="";
     document.getElementById("duplicateWarning").style.display="none";
-    clearLocationBuilder(false);
+    if (!options.preserveFeedback) setEntrySaveFeedback("");
+    if (keepEntryDefaults) {
+        applyRememberedEntryDefaults({ defaults: defaults || readEntryPrefs(), keepHint: true });
+    } else if (applyRemembered) {
+        applyRememberedEntryDefaults();
+    } else {
+        refreshEntryLocationBanner();
+        updateSaveAnotherVisibility();
+    }
 }
 
 let inventoryView = "cards";
@@ -3041,11 +3315,13 @@ function useExistingLocation(){
  if(!value)return;
  document.getElementById("location").value=value;
  syncLocationBuilderFromFinal();
+ refreshEntryLocationBanner();
 }
 function buildLocation(){
  const parts=["locationArea","locationSection","locationBin"].map(id=>document.getElementById(id)?.value.trim()).filter(Boolean);
  if(!parts.length){alert("Enter a cabinet, box, shelf, drawer, or bin first.");return}
  document.getElementById("location").value=parts.join(" - ");
+ refreshEntryLocationBanner();
 }
 function clearLocationBuilder(clearFinal=false){
  ["locationArea","locationSection","locationBin"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
