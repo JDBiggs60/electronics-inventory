@@ -675,11 +675,11 @@ button {
         <h2 id="homeWelcome">What would you like to do?</h2>
         <p>Your parts, locations, prices, and labels—ready when you need them.</p>
     </div>
-    <p style="font-size:13px">Electronics Inventory · Version 2026.10.29.1</p>
+    <p style="font-size:13px">Electronics Inventory · Version 2026.11.24.1</p>
     <div class="home-grid" aria-label="App sections">
         <button type="button" class="home-card add" onclick="showAppView('add')">
             <span class="home-icon" aria-hidden="true">📷</span><strong>Add / Identify</strong>
-            <small>Photograph one part or a pile, scan a barcode, and save it.</small>
+            <small>Take or import photos of one part or a pile, scan a barcode, and save it.</small>
         </button>
         <button type="button" class="home-card inventory" onclick="showAppView('inventory')">
             <span class="home-icon" aria-hidden="true">🔎</span><strong>My Inventory</strong>
@@ -712,7 +712,7 @@ button {
     <div class="panel" id="addItemPanel">
 
         <h2>Add Electronic Item</h2>
-        <p class="lookup-hint" style="margin-top:0">Photograph → review the name → confirm quantity and location → Save or Save &amp; Add Another.</p>
+        <p class="lookup-hint" style="margin-top:0">Take or import a photo → review the name → confirm quantity and location → Save or Save &amp; Add Another.</p>
         <div id="editItemNotice" class="edit-item-notice">
             <strong>Editing saved item</strong>
             <span id="editItemNoticeName"></span> Existing additional photos stay attached unless you add new ones.
@@ -730,13 +730,13 @@ button {
 
             <div class="full">
                 <label>Photos</label>
-                <div class="lookup-hint" style="margin-bottom:8px;">Front photo starts AI identification for new items. Back and extra photos are optional.</div>
+                <div class="lookup-hint" style="margin-bottom:8px;">Take a new photo or tap Photo Library / Files to use a saved picture. The front photo starts AI identification for new items. Back and extra photos are optional.</div>
                 <div class="multi-photo-area">
                     <div class="photo-slot">
                         <div class="photo-slot-title">Front Photo</div>
                         <div class="photo-picker">
                             <button type="button" class="photo-picker-btn primary" id="takePhotoButton">Take Front Photo</button>
-                            <button type="button" class="photo-picker-btn" id="choosePhotoButton">Choose Front Photo</button>
+                            <button type="button" class="photo-picker-btn" id="choosePhotoButton">Photo Library / Files</button>
                         </div>
                         <div id="photoFileName" class="photo-file-name">No front photo selected</div>
                         <input type="file" id="photo" class="hidden-photo-input" accept="image/*">
@@ -748,7 +748,7 @@ button {
                         <div class="photo-slot-title">Back Photo</div>
                         <div class="photo-picker">
                             <button type="button" class="photo-picker-btn primary" id="takeBackPhotoButton">Take Back Photo</button>
-                            <button type="button" class="photo-picker-btn" id="chooseBackPhotoButton">Choose Back Photo</button>
+                            <button type="button" class="photo-picker-btn" id="chooseBackPhotoButton">Photo Library / Files</button>
                         </div>
                         <div id="backPhotoFileName" class="photo-file-name">No back photo selected</div>
                         <input type="file" id="backPhoto" class="hidden-photo-input" accept="image/*">
@@ -949,7 +949,7 @@ button {
         <p>Spread parts apart so each is visible. Photograph the pile, check the suggested items, then choose what to save. Optionally add a close-up photo on each row; the shared pile photo is not attached to every saved item.</p>
         <div class="buttons">
             <button type="button" onclick="document.getElementById('pileCamera').click()">Take Pile Photo</button>
-            <button type="button" class="secondary" onclick="document.getElementById('pileFile').click()">Choose Pile Photo</button>
+            <button type="button" class="secondary" onclick="document.getElementById('pileFile').click()">Photo Library / Files</button>
         </div>
         <input id="pileCamera" type="file" accept="image/*" capture="environment" class="hidden-photo-input">
         <input id="pileFile" type="file" accept="image/*" class="hidden-photo-input">
@@ -1202,12 +1202,12 @@ function printAuditSheet(){
  document.getElementById('auditPrint').innerHTML=pages.join('');document.body.classList.add('printing-audit');const clean=()=>{document.body.classList.remove('printing-audit');window.removeEventListener('afterprint',clean)};window.addEventListener('afterprint',clean);try{window.print()}catch(e){clean();alert(e.message)}
 }
 const electronicsHelp=[
- ['Add / Identify','Take a clear front photo, then a back photo or extra views if markings are hidden. For a new item, AI fills suggestions after the front photo. Review the suggested name and part number, correct errors, set quantity and storage location, and save. AI identification is a suggestion; leave unknown specifications blank.'],
- ['How to Inventory Several Components Quickly','Open Add / Identify. Take or choose a front photo; AI fills suggestions for a new item. Review the name and essential details, set quantity, and confirm the storage location shown in the remembered-location banner. Tap Save & Add Another to save and immediately prepare the next part while keeping location, section, and category. Change the location anytime; the new choice is remembered after a successful save. Use Clear Remembered Location when you start a different drawer or box. After a session, open My Inventory to print a QR label for any saved item.'],
- ['How to remove or replace photographs','Open the item with Edit Item. Use Take/Choose Front Photo to replace the front picture (editing does not re-run AI or overwrite text). Use Remove Front Photo to clear the front picture. Saved additional photographs appear in a list with Remove Additional Photo. New back or extra photos can be added with the existing buttons, and Remove Back Photo clears a new back photo still on the form. Removals are staged until you tap Update Item. Cancel Edit discards staged removals and keeps the original cloud photographs. Removing a photograph never deletes the inventory item.'],
+ ['Add / Identify','Take a clear front photo or tap Photo Library / Files to select an existing picture. Choose Photo Library on iPhone or a saved image file on a computer. Add a back photo or extra views if markings are hidden. For a new item, AI fills suggestions after the front photo. Review the suggested name and part number, correct errors, set quantity and storage location, and save. AI identification is a suggestion; leave unknown specifications blank.'],
+ ['How to Inventory Several Components Quickly','Open Add / Identify. Take a front photo or choose Photo Library / Files; AI fills suggestions for a new item. Review the name and essential details, set quantity, and confirm the storage location shown in the remembered-location banner. Tap Save & Add Another to save and immediately prepare the next part while keeping location, section, and category. Change the location anytime; the new choice is remembered after a successful save. Use Clear Remembered Location when you start a different drawer or box. After a session, open My Inventory to print a QR label for any saved item.'],
+ ['How to remove or replace photographs','Open the item with Edit Item. Use Take Front Photo or Photo Library / Files to replace the front picture (editing does not re-run AI or overwrite text). Use Remove Front Photo to clear the front picture. Saved additional photographs appear in a list with Remove Additional Photo. New back or extra photos can be added with the existing buttons, and Remove Back Photo clears a new back photo still on the form. Removals are staged until you tap Update Item. Cancel Edit discards staged removals and keeps the original cloud photographs. Removing a photograph never deletes the inventory item.'],
  ['How to review a possible duplicate','If a warning appears, read the match reason carefully. Strong matches include the same barcode, or the same part number with the same manufacturer. Weaker warnings appear when a part number is shared but manufacturers differ, or when only a short/generic number matches. Choose Add to Existing Quantity only when they are truly the same part stored together, Save as Separate Item when they should remain distinct, or Cancel to keep your form unchanged. Nothing is merged automatically.'],
  ['How to change quantities safely','On an inventory card, use +1 or -1. The app checks that the cloud quantity still matches before saving, blocks rapid double-taps on the same item, and refuses quantities below 1. If another device changed the count first, you will see a conflict message and the list refreshes. For larger changes, use Edit Item and set Quantity, then Update Item.'],
- ['Pile photo','Spread a small group apart. Photograph the pile, review each suggested item and quantity, select what to keep, choose its location, then save. Optionally attach a close-up photo to each row so that item has its own picture; the shared pile photo is not copied onto every record. The app skips stronger duplicate matches for review. It cannot reliably count hidden or overlapping pieces.'],
+ ['Pile photo','Spread a small group apart. Take a pile photo or choose Photo Library / Files, review each suggested item and quantity, select what to keep, choose its location, then save. Optionally attach a close-up photo to each row so that item has its own picture; the shared pile photo is not copied onto every record. The app skips stronger duplicate matches for review. It cannot reliably count hidden or overlapping pieces.'],
  ['My Inventory and duplicates','Search names, part numbers and locations. Use cards or list view. Open a record to edit it or print its label. A duplicate warning can combine quantities or save a separate item; keep separate records when identical parts are stored in different places.'],
  ['Storage Locations','Locations are built from recorded items. Use consistent names such as Cabinet A - Drawer 7 - Bin 3. Open a location to see its contents. Use its QR label to return to that list. Change an item location by editing its record.'],
  ['Check Physical Inventory and progress','Choose a location. Physically check each part identity, quantity, condition and location. Correct wrong records first, then tap Confirm Identity, Count & Location. Check status syncs to your account. Changes to those details invalidate an earlier check. A completed location covers recorded items only; add unrecorded stock separately. Verified does not mean electrically tested.'],
@@ -1535,7 +1535,7 @@ function addExtraPhotoSlot(){
   <div class="photo-slot-title">Extra Photo ${id}</div>
   <div class="photo-picker">
    <button type="button" class="photo-picker-btn primary" id="takeExtraPhotoButton${id}">Take Extra Photo</button>
-   <button type="button" class="photo-picker-btn" id="chooseExtraPhotoButton${id}">Choose Extra Photo</button>
+   <button type="button" class="photo-picker-btn" id="chooseExtraPhotoButton${id}">Photo Library / Files</button>
   </div>
   <div id="extraPhotoFileName${id}" class="photo-file-name">No extra photo selected</div>
   <input type="file" id="extraPhotoInput${id}" class="hidden-photo-input" accept="image/*">
@@ -1610,8 +1610,13 @@ function renderPileEntries() {
   const photoLabel=document.createElement("label");photoLabel.textContent="Optional photo of this part only (recommended)";
   const photoHint=document.createElement("p");photoHint.className="lookup-hint";
   photoHint.textContent=entry.individualPhoto?"Individual photo ready for this row.":"The shared pile photo is not attached to each item. Add a close-up of this part if you want a searchable photo.";
-  const photoInput=document.createElement("input");photoInput.type="file";photoInput.accept="image/*";photoInput.capture="environment";
-  photoInput.addEventListener("change",async event=>{
+  const photoInput=document.createElement("input");photoInput.type="file";photoInput.accept="image/*";photoInput.className="hidden-photo-input";
+  const cameraInput=document.createElement("input");cameraInput.type="file";cameraInput.accept="image/*";cameraInput.capture="environment";cameraInput.className="hidden-photo-input";
+  const picker=document.createElement("div");picker.className="photo-picker";
+  for(const [label,input,primary] of [["Take Part Photo",cameraInput,true],["Photo Library / Files",photoInput,false]]){
+   const button=document.createElement("button");button.type="button";button.className="photo-picker-btn"+(primary?" primary":"");button.textContent=label;button.addEventListener("click",()=>input.click());picker.append(button);
+  }
+  const loadPartPhoto=async event=>{
    const file=event.target.files?.[0];if(!file)return;
    try{
     entry.individualPhoto=await compressPhotoFile(file);
@@ -1621,10 +1626,11 @@ function renderPileEntries() {
     alert("That individual part photo could not be loaded.");
    }
    event.target.value="";
-  });
+  };
+  photoInput.addEventListener("change",loadPartPhoto);cameraInput.addEventListener("change",loadPartPhoto);
   const clearPhoto=document.createElement("button");clearPhoto.type="button";clearPhoto.className="secondary";clearPhoto.textContent="Clear Part Photo";
   clearPhoto.addEventListener("click",()=>{entry.individualPhoto="";photoHint.textContent="The shared pile photo is not attached to each item. Add a close-up of this part if you want a searchable photo.";});
-  photoWrap.append(photoLabel,photoHint,photoInput,clearPhoto);row.append(photoWrap);
+  photoWrap.append(photoLabel,photoHint,picker,photoInput,cameraInput,clearPhoto);row.append(photoWrap);
   box.append(row);
  });
  document.getElementById("pileSaveTools").style.display=pileEntries.length?"block":"none";
